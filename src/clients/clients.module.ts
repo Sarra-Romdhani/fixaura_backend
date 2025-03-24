@@ -12,3 +12,4 @@ import { Client, ClientSchema } from './client.schema';
   providers: [ClientsService],
 })
 export class ClientsModule {}
+

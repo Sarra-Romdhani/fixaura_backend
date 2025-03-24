@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import { PrestatairesService } from './prestataires.service';
 import { Prestataire } from './prestataire.schema';
 
@@ -42,9 +42,12 @@ export class PrestatairesController {
   }
 
   @Get(':id')
-  async getPrestataire(@Query('id') id: string) {
+  async findById(@Param('id') id: string): Promise<Prestataire> {
     const prestataire = await this.prestatairesService.findById(id);
-    return { success: true, data: prestataire };
+    if (!prestataire) {
+      throw new NotFoundException(`Prestataire with ID ${id} not found`);
+    }
+    return prestataire;
   }
 
   // Dans PrestatairesController

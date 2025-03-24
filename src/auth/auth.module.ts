@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { Prestataire, PrestataireSchema } from '../prestataires/prestataire.schema';
 import { Client, ClientSchema } from '../clients/client.schema';
+import { Auth, AuthSchema } from './auth.schema'; // Changement ici
 
 @Module({
   imports: [
@@ -14,5 +15,8 @@ import { Client, ClientSchema } from '../clients/client.schema';
   ],
   providers: [AuthService],
   controllers: [AuthController],
+ 
+
+ 
 })
 export class AuthModule {}

@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-
-@Schema()
+@Schema({ timestamps: true })
 export class Client extends Document {
   @Prop({ required: true })
   name: string;
@@ -18,7 +17,7 @@ export class Client extends Document {
   @Prop({ required: false })
   image: string;
 
-  @Prop({ required: true })
+  @Prop()
   phoneNumber: string;
 }
 

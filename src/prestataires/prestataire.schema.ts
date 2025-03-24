@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-@Schema()
+@Schema({ timestamps: true }) // Ajoute createdAt et updatedAt
 export class Prestataire extends Document {
   @Prop({ required: true })
   name: string;
@@ -14,7 +14,6 @@ export class Prestataire extends Document {
 
   @Prop({ required: true })
   job: string; // Ex: "Plumber", "Electrician", etc.
-
   @Prop({ required: true })
   category: string; // Nouvelle propriété pour la catégorie
 
@@ -31,7 +30,7 @@ export class Prestataire extends Document {
   maxPrice: number; // Prix maximum pour un service
 
   @Prop({ required: true, unique: true })
-  business_id: string; // Identifiant unique de l’entreprise
+  businessID: string; // Identifiant unique de l’entreprise (remplace business_id pour cohérence)
 
   @Prop({ required: false })
   image: string; // URL ou chemin de l’image (facultatif)
@@ -47,6 +46,7 @@ export class Prestataire extends Document {
 
   @Prop({ required: false })
   phoneNumber: string; // Numéro de téléphone
+
 }
 
 export const PrestataireSchema = SchemaFactory.createForClass(Prestataire);

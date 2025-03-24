@@ -7,6 +7,8 @@ import { PrestatairesModule } from './prestataires/prestataires.module';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { ReservationsModule } from './reservations/reservations.module';
+import { PublicationsModule } from './publications/publications.module';
+
 
 @Module({
   imports: [
@@ -17,8 +19,7 @@ import { ReservationsModule } from './reservations/reservations.module';
     AuthModule,
     ClientsModule,
     ReservationsModule,
- 
-
+    PublicationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
