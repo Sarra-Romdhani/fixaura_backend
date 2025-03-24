@@ -3,6 +3,15 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+
+  // Activer CORS pour toutes les origines
+  app.enableCors({
+    origin: '*', // Allow requests from the Flutter app
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allowed HTTP methods
+    credentials: true, // Allow cookies and credentials
+  });
+
+  await app.listen(3000);
+  console.log('Nest application successfully started on port 3000');
 }
 bootstrap();

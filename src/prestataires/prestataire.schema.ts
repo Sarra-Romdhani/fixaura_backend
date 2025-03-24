@@ -13,10 +13,13 @@ export class Prestataire extends Document {
   password: string; // À hasher en production
 
   @Prop({ required: true })
-  type: string; // Ex: "Plumber", "Electrician", etc.
+  job: string; // Ex: "Plumber", "Electrician", etc.
 
   @Prop({ required: true })
-  location: string; // Ex: "Tunis", "Sfax", etc.
+  category: string; // Nouvelle propriété pour la catégorie
+
+  @Prop({ required: true })
+  businessAddress: string; // Adresse professionnelle
 
   @Prop({ required: true, default: true })
   available: boolean; // Disponible maintenant (true/false)
@@ -32,6 +35,18 @@ export class Prestataire extends Document {
 
   @Prop({ required: false })
   image: string; // URL ou chemin de l’image (facultatif)
+
+  @Prop({ required: false })
+  facebook: string; // Lien vers la page Facebook
+
+  @Prop({ required: false })
+  instagram: string; // Lien vers le profil Instagram
+
+  @Prop({ required: false })
+  website: string; // Lien vers le site web
+
+  @Prop({ required: false })
+  phoneNumber: string; // Numéro de téléphone
 }
 
 export const PrestataireSchema = SchemaFactory.createForClass(Prestataire);
