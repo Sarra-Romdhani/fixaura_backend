@@ -18,7 +18,8 @@ export class ServicesController {
       photo: string;
       prestataireId: string;
     },
-  ) {
+  )
+  {
     const service = await this.servicesService.addService(
       body.title,
       body.description,
