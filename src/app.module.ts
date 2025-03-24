@@ -3,8 +3,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ServicesModule } from './services/services.module';
-import { ProfessionalsModule } from './professionals/professionals.module';
 import { PrestatairesModule } from './prestataires/prestataires.module';
+import { AuthModule } from './auth/auth.module';
+import { ClientsModule } from './clients/clients.module';
+import { ReservationsModule } from './reservations/reservations.module';
 
 @Module({
   imports: [
@@ -12,6 +14,9 @@ import { PrestatairesModule } from './prestataires/prestataires.module';
    // ProfessionalsModule,
     ServicesModule,
     PrestatairesModule,
+    AuthModule,
+    ClientsModule,
+    ReservationsModule,
  
 
   ],
