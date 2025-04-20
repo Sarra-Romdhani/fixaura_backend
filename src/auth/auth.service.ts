@@ -30,7 +30,7 @@ export class AuthService {
             email: prestataire.email,
             job: prestataire.job,
             category: prestataire.category,
-            location: prestataire.businessAddress,
+            businessAddress: prestataire.businessAddress,
             available: prestataire.available,
             minPrice: prestataire.minPrice,
             maxPrice: prestataire.maxPrice,
@@ -56,7 +56,7 @@ export class AuthService {
             id: client._id,
             name: client.name,
             email: client.email,
-            location: client.homeAddress,
+          businessAddress: client.homeAddress,
           },
           type: 'client',
         };
@@ -131,8 +131,8 @@ export class AuthService {
       if (!data.category || typeof data.category !== 'string') {
         throw new BadRequestException('category is required and must be a string');
       }
-      if (!data.location || typeof data.location !== 'string') {
-        throw new BadRequestException('location is required and must be a string');
+      if (!data.businessAddress || typeof data.businessAddress !== 'string') {
+        throw new BadRequestException('businessAddress is required and must be a string');
       }
       if (data.available !== undefined && typeof data.available !== 'boolean') {
         throw new BadRequestException('available must be a boolean');
@@ -162,8 +162,8 @@ export class AuthService {
       if (data.website && typeof data.website !== 'string') {
         throw new BadRequestException('website must be a string');
       }
-      if (data.serviceName && typeof data.serviceName !== 'string') {
-        throw new BadRequestException('serviceName must be a string');
+      if (data.job && typeof data.job !== 'string') {
+        throw new BadRequestException('job must be a string');
       }
 
       const newPrestataire = new this.prestataireModel({
@@ -171,7 +171,7 @@ export class AuthService {
         email: data.email,
         password: hashedPassword,
         category: data.category,
-        location: data.location,
+      businessAddress: data.businessAddress,
         available: data.available !== undefined ? data.available : true,
         minPrice: data.minPrice,
         maxPrice: data.maxPrice,
@@ -181,7 +181,7 @@ export class AuthService {
         facebook: data.facebook || '',
         instagram: data.instagram || '',
         website: data.website || '',
-        serviceName: data.serviceName || '',
+        job: data.job || '',
       });
 
       const savedPrestataire = await newPrestataire.save();

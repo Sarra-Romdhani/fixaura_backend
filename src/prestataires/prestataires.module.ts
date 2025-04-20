@@ -14,6 +14,6 @@ import { ReservationSchema } from 'src/reservations/reservation.schema';
   ],
   providers: [PrestatairesService],
   controllers: [PrestatairesController],
-  exports: [MongooseModule],
+  exports: [PrestatairesService,MongooseModule],
 })
 export class PrestatairesModule {}

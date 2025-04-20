@@ -10,6 +10,7 @@ import { Client, ClientSchema } from './client.schema';
   ],
   controllers: [ClientsController],
   providers: [ClientsService],
+  exports: [ClientsService, MongooseModule], // Export MongooseModule to provide ClientModel
 })
 export class ClientsModule {}
 

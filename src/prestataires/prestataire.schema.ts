@@ -47,6 +47,14 @@ export class Prestataire extends Document {
   @Prop({ required: false })
   phoneNumber: string; // Numéro de téléphone
 
+   // Modified to store average rating
+   @Prop({ default: 0 })
+   rating: number;
+ 
+   // Added to track number of ratings for accurate averaging
+   @Prop({ default: 0 })
+   ratingCount: number;
+
 }
 
 export const PrestataireSchema = SchemaFactory.createForClass(Prestataire);

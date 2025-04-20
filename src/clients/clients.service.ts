@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Param } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Client } from './client.schema';
@@ -9,7 +9,7 @@ export class ClientsService {
     @InjectModel(Client.name) private clientModel: Model<Client>,
   ) {}
 
-  async getClientProfile(id: string): Promise<Partial<Client>> { // Changed return type to Partial<Client>
+  async getClientProfile(@Param('id') id: string) : Promise<Partial<Client>> { // Changed return type to Partial<Client>
     const client = await this.clientModel.findById(id).exec();
     if (!client) {
       throw new NotFoundException(`Client with ID ${id} not found`);
@@ -42,6 +42,14 @@ export class ClientsService {
       phoneNumber: clientWithoutPassword.phoneNumber,
     };
   }
+
+  async searchClients(query: string, excludeId: string): Promise<Client[]> {
+    return this.clientModel.find({
+      name: { $regex: query, $options: 'i' },
+      _id: { $ne: excludeId }
+    }).exec();
+  }
+  
   
 }
 

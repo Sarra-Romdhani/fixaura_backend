@@ -23,6 +23,7 @@ export class Service extends Document {
 
   @Prop({ default: Date.now })
   createdAt: Date;
+  
 }
 
 export const ServiceSchema = SchemaFactory.createForClass(Service);

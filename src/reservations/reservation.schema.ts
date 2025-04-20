@@ -1,25 +1,43 @@
+// reservation.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-
+export type ReservationDocument = Reservation & Document;
 @Schema()
 export class Reservation extends Document {
-  @Prop({ required: true })
-  id_client: string; // ID of the client
+  @Prop({ required: true, ref: 'Client' })
+  id_client: string;
+
+  @Prop({ required: true, ref: 'Prestataire' })
+  id_prestataire: string;
 
   @Prop({ required: true })
-  id_prestataire: string; // ID of the prestataire
+  date: Date;
 
   @Prop({ required: true })
-  date: Date; // Date of the reservation
+  location: string;
+
+  @Prop({ 
+    required: true, 
+    enum: ['pending', 'confirmed', 'cancelled', 'completed', 'waiting'],
+    default: 'pending'
+  })
+  status: string;
 
   @Prop({ required: true })
-  location: string; // Home address of the client
+  service: string;
 
-  @Prop({ required: true, enum: ['pending', 'confirmed', 'cancelled'] })
-  status: string; // Status of the reservation
+  @Prop({ required: false })
+  price?: number;
 
-  @Prop({ required: true })
-  service: string; // Type of service (e.g., "Gourmet Chef", "Wellness Guru")
+  @Prop({ required: false })
+  request?: string;
+
+  @Prop({ type: String })
+  qrCode?: string; // Ensure this is present
+  @Prop({ default: false })
+  isRated: boolean; // New field to track if reservation is rated
+
+
 }
 
 export const ReservationSchema = SchemaFactory.createForClass(Reservation);

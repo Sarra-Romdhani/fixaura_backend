@@ -1,4 +1,4 @@
-import { Controller, Get, Param, NotFoundException, Body, Put } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, Body, Put, Query } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { Client } from './client.schema';
 
@@ -14,7 +14,8 @@ export class ClientsController {
         success: true,
         data: client,
       };
-    } catch (error) {
+      
+    } catch (error) { 
       if (error instanceof NotFoundException) {
         throw error;
       }
@@ -40,4 +41,17 @@ export class ClientsController {
       throw new NotFoundException('Error updating client profile');
     }
   }
+
+
+  // clients.controller.ts
+  @Get('/search')
+  async searchClients(@Query('query') query: string, @Query('excludeId') excludeId: string) {
+    const clients = await this.clientsService.searchClients(query, excludeId);
+    return {
+      success: true,
+      data: clients,
+    };
+  }
+  
+  
 }

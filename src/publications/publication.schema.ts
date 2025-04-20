@@ -1,7 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 
-@Schema({ timestamps: true }) // Ajoute createdAt et updatedAt automatiquement
+@Schema({ timestamps: true })
+export class Comment {
+  @Prop({ required: true })
+  userId: string;
+
+  @Prop({ required: true })
+  text: string;
+}
+
+export const CommentSchema = SchemaFactory.createForClass(Comment);
+
+@Schema({ timestamps: true })
 export class Publication extends Document {
   @Prop({ required: true })
   title: string;
@@ -9,11 +20,17 @@ export class Publication extends Document {
   @Prop({ required: true })
   description: string;
 
-  @Prop()
-  picture: string; // URL ou chemin de l'image
+  @Prop({ default: '' })
+  picture: string;
 
   @Prop({ required: true })
-  providerId: string; // ID du prestataire qui a publié
+  providerId: string;
+
+  @Prop({ type: [String], default: [] })
+  likes: string[];
+
+  @Prop({ type: [CommentSchema], default: [] })
+  comments: Comment[];
 }
 
 export const PublicationSchema = SchemaFactory.createForClass(Publication);
