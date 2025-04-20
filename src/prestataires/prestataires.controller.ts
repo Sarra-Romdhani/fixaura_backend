@@ -5,6 +5,16 @@ import { Prestataire } from './prestataire.schema';
 @Controller('prestataires')
 export class PrestatairesController {
   constructor(private readonly prestatairesService: PrestatairesService) {}
+
+  @Get()
+  async getAllPrestataires() {
+    const prestataires = await this.prestatairesService.getAllPrestataires();
+    return {
+      success: true,
+      data: prestataires,
+    };
+  }
+
   @Get('search')
   async searchPrestataires(
     @Query('name') name?: string,
@@ -30,11 +40,57 @@ export class PrestatairesController {
     };
   }
 
-  // New endpoint for category search
-  @Get('category')
-  async async 
-  (@Query('category') category: string) {
+  @Get('category/:category')
+  async searchByCategoryParam(@Param('category') category: string) {
     const prestataires = await this.prestatairesService.searchByCategory(category);
+    return {
+      success: true,
+      data: prestataires,
+    };
+  }
+
+  @Get('by-name-and-category')
+  async getPrestataireByNameAndCategory(
+    @Query('name') name: string,
+    @Query('category') category?: string,
+  ) {
+    const prestataires = await this.prestatairesService.getPrestataireByNameAndCategory(name, category);
+    return {
+      success: true,
+      data: prestataires,
+    };
+  }
+
+  @Get('by-job-and-name')
+  async getPrestataireByJobAndName(
+    @Query('job') job: string,
+    @Query('name') name?: string,
+  ) {
+    if (!job) {
+      throw new NotFoundException('Job parameter is required');
+    }
+    const prestataires = await this.prestatairesService.getPrestataireByJobAndName(job, name);
+    return {
+      success: true,
+      data: prestataires,
+    };
+  }
+
+  @Get('by-job-and-price-range')
+  async getPrestataireByJobAndPriceRange(
+    @Query('job') job: string,
+    @Query('maxPrice') maxPrice: string,
+  ) {
+    if (!job) {
+      throw new NotFoundException('Job parameter is required');
+    }
+    if (!maxPrice) {
+      throw new NotFoundException('maxPrice parameter is required');
+    }
+    const prestataires = await this.prestatairesService.getPrestataireByJobAndPriceRange(
+      job,
+      parseInt(maxPrice),
+    );
     return {
       success: true,
       data: prestataires,
@@ -50,7 +106,6 @@ export class PrestatairesController {
     return prestataire;
   }
 
-  // Dans PrestatairesController
   @Get(':id/same-job')
   async getPrestatairesWithSameJob(@Param('id') id: string) {
     const prestataires = await this.prestatairesService.findPrestatairesWithSameJob(id);
@@ -60,29 +115,32 @@ export class PrestatairesController {
     };
   }
 
-
   @Get(':id/same-job/search')
-async searchByNameAndSameJob(
-  @Param('id') id: string,
-  @Query('name') name?: string,
-) {
-  const prestataires = await this.prestatairesService.searchByNameAndSameJob(id, name);
-  return {
-    success: true,
-    data: prestataires,
-  };
-}
-@Get('searchByCategory')
-async searchByCategory(@Query('category') category: string): Promise<Prestataire[]> {
-  return this.prestatairesService.searchByCategory(category);
-}
+  async searchByNameAndSameJob(
+    @Param('id') id: string,
+    @Query('name') name?: string,
+  ) {
+    const prestataires = await this.prestatairesService.searchByNameAndSameJob(id, name);
+    return {
+      success: true,
+      data: prestataires,
+    };
+  }
 
-@Get(':id/statistics')
-async getBookingStatistics(@Param('id') id: string) {
-  const statistics = await this.prestatairesService.getBookingStatistics(id);
-  return {
-    success: true,
-    data: statistics,
-  };
-}
+  @Get('searchByCategory/:category')
+  async searchByCategory(@Param('category') category: string): Promise<Prestataire[]> {
+    return this.prestatairesService.searchByCategory(category);
+  }
+
+  @Get(':id/statistics')
+  async getBookingStatistics(@Param('id') id: string) {
+    const statistics = await this.prestatairesService.getBookingStatistics(id);
+    return {
+      success: true,
+      data: statistics,
+    };
+  }
+
+
+  
 }

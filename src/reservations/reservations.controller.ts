@@ -37,8 +37,8 @@ export class ReservationsController {
   }
 
   // Récupérer les réservations par client
-  @Get('client')
-  async getReservationsByClient(@Query('id_client') id_client: string) {
+  @Get('client/:id_client')
+  async getReservationsByClient(@Param('id_client') id_client: string) {
     const reservations = await this.reservationsService.getReservationsByClient(id_client);
     return {
       success: true,
@@ -46,9 +46,21 @@ export class ReservationsController {
     };
   }
 
+  // Récupérer les réservations terminées par client (status = "completed")
+  @Get('client/:id/completed')
+  async getCompletedReservationsByClient(@Param('id') id_client: string): Promise<Reservation[]> {
+    return this.reservationsService.getCompletedReservationsByClient(id_client);
+  }
+
+  // Récupérer les réservations non terminées par client (status != "completed")
+  @Get('client/:id/non-completed')
+  async getNonCompletedReservationsByClient(@Param('id') id_client: string): Promise<Reservation[]> {
+    return this.reservationsService.getNonCompletedReservationsByClient(id_client);
+  }
+
   // Récupérer les réservations par prestataire
-  @Get('prestataire')
-  async getReservationsByPrestataire(@Query('id_prestataire') id_prestataire: string) {
+  @Get('prestataire/:id_prestataire')
+  async getReservationsByPrestataire(@Param('id_prestataire') id_prestataire: string) {
     const reservations = await this.reservationsService.getReservationsByPrestataire(id_prestataire);
     return {
       success: true,

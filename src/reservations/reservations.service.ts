@@ -32,20 +32,34 @@ export class ReservationsService {
   // Récupérer les réservations par client
   async getReservationsByClient(id_client: string): Promise<Reservation[]> {
     const reservations = await this.reservationModel.find({ id_client }).exec();
-    if (!reservations.length) {
-      throw new NotFoundException(`Aucune réservation trouvée pour le client ${id_client}`);
-    }
-    return reservations;
+    // Remove the NotFoundException and return the empty array if no reservations are found
+    return reservations; // This will return [] if no reservations are found
+  }
+
+  // Récupérer les réservations terminées par client (status = "completed")
+  async getCompletedReservationsByClient(id_client: string): Promise<Reservation[]> {
+    const reservations = await this.reservationModel
+      .find({ id_client, status: 'completed' })
+      .exec();
+    return reservations; // Returns [] if no completed reservations are found
+  }
+
+  // Récupérer les réservations non terminées par client (status != "completed")
+  async getNonCompletedReservationsByClient(id_client: string): Promise<Reservation[]> {
+    const reservations = await this.reservationModel
+      .find({ id_client, status: { $ne: 'completed' } })
+      .exec();
+    return reservations; // Returns [] if no non-completed reservations are found
   }
 
   // Récupérer les réservations par prestataire
   async getReservationsByPrestataire(id_prestataire: string): Promise<Reservation[]> {
     const reservations = await this.reservationModel.find({ id_prestataire }).exec();
-    if (!reservations.length) {
-      throw new NotFoundException(`Aucune réservation trouvée pour le prestataire ${id_prestataire}`);
-    }
-    return reservations;
+    // Similarly, return an empty array instead of throwing an exception
+    return reservations; // This will return [] if no reservations are found
   }
+
+
 
   // Mettre à jour une réservation
   async updateReservation(id: string, updateData: Partial<Reservation>): Promise<Reservation> {
