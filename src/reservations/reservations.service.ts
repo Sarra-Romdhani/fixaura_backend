@@ -148,38 +148,33 @@ async createReservation(reservationData: Partial<Reservation>): Promise<Reservat
   // Récupérer les réservations par client
   async getReservationsByClient(id_client: string): Promise<Reservation[]> {
     const reservations = await this.reservationModel.find({ id_client }).exec();
-    if (!reservations.length) {
-      throw new NotFoundException(`Aucune réservation trouvée pour le client ${id_client}`);
-    }
-    return reservations;
+    // Remove the NotFoundException and return the empty array if no reservations are found
+    return reservations; // This will return [] if no reservations are found
+  }
+
+  // Récupérer les réservations terminées par client (status = "completed")
+  async getCompletedReservationsByClient(id_client: string): Promise<Reservation[]> {
+    const reservations = await this.reservationModel
+      .find({ id_client, status: 'completed' })
+      .exec();
+    return reservations; // Returns [] if no completed reservations are found
+  }
+
+  // Récupérer les réservations non terminées par client (status != "completed")
+  async getNonCompletedReservationsByClient(id_client: string): Promise<Reservation[]> {
+    const reservations = await this.reservationModel
+      .find({ id_client, status: { $ne: 'completed' } })
+      .exec();
+    return reservations; // Returns [] if no non-completed reservations are found
   }
 
   // Récupérer les réservations par prestataire
   async getReservationsByPrestataire(id_prestataire: string): Promise<Reservation[]> {
-    try {
-      console.log(`[SERVICE] Querying prestataire: ${id_prestataire}`);
-      
-      // Trim et validation de l'ID
-      const cleanId = id_prestataire.trim();
-      if (!cleanId) {
-        throw new Error('ID prestataire vide');
-      }
-
-      const query = { id_prestataire: cleanId };
-      console.log(`[SERVICE] Query:`, query);
-
-      const reservations = await this.reservationModel.find(query).exec();
-      console.log(`[SERVICE] Found ${reservations.length} reservations`);
-
-      if (reservations.length === 0) {
-        throw new NotFoundException(`Aucune réservation trouvée pour le prestataire ${cleanId}`);
-      }
-
-      return reservations;
-    } catch (error) {
-      console.error(`[SERVICE ERROR]`, error);
-      throw error;
+    const reservations = await this.reservationModel.find({ id_prestataire }).exec();
+    if (!reservations.length) {
+      throw new NotFoundException(`Aucune réservation trouvée pour le prestataire ${id_prestataire}`);
     }
+    return reservations;
   }
 
   // Mettre à jour une réservation

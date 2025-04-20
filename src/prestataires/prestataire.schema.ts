@@ -14,6 +14,7 @@ export class Prestataire extends Document {
 
   @Prop({ required: true })
   job: string; // Ex: "Plumber", "Electrician", etc.
+  
   @Prop({ required: true })
   category: string; // Nouvelle propriété pour la catégorie
 

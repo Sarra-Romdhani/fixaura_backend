@@ -220,9 +220,56 @@ async getAllPrestatairesExcept(excludeId: string): Promise<Prestataire[]> {
   return this.prestataireModel.find({ _id: { $ne: excludeId } }).exec();
 }
 
+async getAllPrestataires(): Promise<Prestataire[]> {
+  const prestataires = await this.prestataireModel.find().exec();
+  return prestataires;
+}
 
+async getPrestataireByNameAndCategory(name: string, category?: string): Promise<Prestataire[]> {
+  const filter: any = {};
 
+  if (name) {
+    filter.name = { $regex: new RegExp(name, 'i') }; // Case-insensitive partial match for name
+  }
+  if (category) {
+    filter.category = { $regex: new RegExp(category, 'i') }; // Case-insensitive match for category
+  }
 
+  console.log('Filtre appliqué :', JSON.stringify(filter, null, 2));
+  const prestataires = await this.prestataireModel.find(filter).exec();
+  
+  return prestataires;
+}
+
+async getPrestataireByJobAndName(job: string, name?: string): Promise<Prestataire[]> {
+  const filter: any = {};
+
+  // Job filter is mandatory
+  filter.job = { $regex: new RegExp(job, 'i') }; // Case-insensitive match for job
+
+  // Name filter is optional
+  if (name) {
+    filter.name = { $regex: new RegExp(name, 'i') }; // Case-insensitive partial match for name
+  }
+
+  console.log('Filtre appliqué (by job and name):', JSON.stringify(filter, null, 2));
+  const prestataires = await this.prestataireModel.find(filter).exec();
+  return prestataires;
+}
+
+async getPrestataireByJobAndPriceRange(job: string, maxPrice: number): Promise<Prestataire[]> {
+  const filter: any = {};
+
+  // Job filter is mandatory
+  filter.job = { $regex: new RegExp(job, 'i') }; // Case-insensitive match for job
+
+  // Price range filter: only check that the prestataire's maxPrice is <= the desired maxPrice
+  filter.maxPrice = { $lte: maxPrice }; // Prestataire's maxPrice should be less than or equal to the desired maxPrice
+
+  console.log('Filtre appliqué (by job and maxPrice):', JSON.stringify(filter, null, 2));
+  const prestataires = await this.prestataireModel.find(filter).exec();
+  return prestataires;
+}
 
 
 

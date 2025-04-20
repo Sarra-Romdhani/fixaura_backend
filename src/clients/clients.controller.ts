@@ -1,4 +1,4 @@
-import { Controller, Get, Param, NotFoundException, Body, Put, Query } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, Body, Put, UnauthorizedException, Query } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { Client } from './client.schema';
 
@@ -54,4 +54,22 @@ export class ClientsController {
   }
   
   
+  @Put(':id/password')
+  async updateClientPassword(
+    @Param('id') id: string,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    try {
+      await this.clientsService.updateClientPassword(id, body.currentPassword, body.newPassword);
+      return {
+        success: true,
+        message: 'Password updated successfully',
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new NotFoundException('Error updating password');
+    }
+  }
 }
