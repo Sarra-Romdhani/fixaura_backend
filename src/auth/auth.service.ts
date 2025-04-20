@@ -97,7 +97,7 @@ export class AuthService {
     if (!data.email || typeof data.email !== 'string') {
       throw new BadRequestException('Email is required and must be a string');
     }
-    if (!data.password || typeof data.password !== 'string') f{
+    if (!data.password || typeof data.password !== 'string') {
       throw new BadRequestException('Password is required and must be a string');
     }
 
