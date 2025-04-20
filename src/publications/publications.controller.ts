@@ -328,8 +328,11 @@
 //   //   return this.publicationModel.findByIdAndUpdate(id, updateData, { new: true });
 //   // }
 
+ 
+  
 
   
+
 //   // Supprimer une publication
 //   async remove(id: string): Promise<void> {
 //     if (!id || typeof id !== 'string') {
@@ -356,6 +359,29 @@
     
 //     return publications;
 //   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //   // Ajouter ces nouvelles méthodes
 //   async toggleLike(publicationId: string, userId: string) {
@@ -446,16 +472,15 @@
 // }
 
 
-
-
 import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, UploadedFile, UseInterceptors, BadRequestException, NotFoundException, InternalServerErrorException, Req } from '@nestjs/common';
 import { PublicationsService } from './publications.service';
 import { Publication } from './publication.schema';
 import { diskStorage } from 'multer';
 import { FileInterceptor } from '@nestjs/platform-express';
 import path, { extname, join } from 'path';
-
-
+import * as fs from 'fs';
+import { Types } from 'mongoose';
+import { FastifyRequest } from 'fastify';
 
 @Controller('publications')
 export class PublicationsController {
@@ -575,7 +600,6 @@ export class PublicationsController {
 
     return this.publicationsService.updatePublication(id, updateData);
   }
-
   // @Post()
   // create(@Body() body: any): Promise<Publication> {
   //   return this.publicationsService.create(body);
