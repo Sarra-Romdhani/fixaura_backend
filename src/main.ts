@@ -133,11 +133,6 @@ uploadDirs.forEach((dir) => {
   reservationsService.setSocketIo(io);
 
 
-
-
-
-
-  
 }
 
 bootstrap();

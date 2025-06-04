@@ -5,7 +5,6 @@ import { ChatbotController } from './chatbot.controller';
 import { ChatbotService } from './chatbot.service'; // Si vous avez un service
 import { Conversation, ConversationSchema } from './Conversation.schema';
 import { MongooseModule } from '@nestjs/mongoose';
-
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Conversation.name, schema: ConversationSchema }]),
