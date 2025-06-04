@@ -6,11 +6,11 @@ import { MessagesService } from 'src/messages/messages.service';
 
 @Controller('reservations')
 export class ReservationsController {
-  constructor(private readonly reservationsService: ReservationsService,
+  constructor(
+    private readonly reservationsService: ReservationsService,
     private readonly messagesService: MessagesService,
   ) {}
 
-  // Créer une nouvelle réservation
   @Post()
   async createReservation(@Body() reservationData: Partial<Reservation>) {
     const reservation = await this.reservationsService.createReservation(reservationData);
@@ -20,7 +20,6 @@ export class ReservationsController {
     };
   }
 
-  // Récupérer toutes les réservations
   @Get()
   async getAllReservations() {
     const reservations = await this.reservationsService.getAllReservations();
@@ -30,9 +29,15 @@ export class ReservationsController {
     };
   }
 
+  @Get(':id')
+  async getReservationById(@Param('id') id: string) {
+    const reservation = await this.reservationsService.getReservationById(id);
+    return {
+      success: true,
+      data: reservation,
+    };
+  }
 
-
-  // Récupérer les réservations par client
   @Get('client/:id_client')
   async getReservationsByClient(@Param('id_client') id_client: string) {
     const reservations = await this.reservationsService.getReservationsByClient(id_client);
@@ -42,25 +47,52 @@ export class ReservationsController {
     };
   }
 
-  // Récupérer les réservations terminées par client (status = "completed")
-  @Get('client/:id/completed')
-  async getCompletedReservationsByClient(@Param('id') id_client: string): Promise<Reservation[]> {
-    return this.reservationsService.getCompletedReservationsByClient(id_client);
+  @Get('client/:id_client/completed')
+  async getCompletedReservationsByClient(@Param('id_client') id_client: string) {
+    if (!isValidObjectId(id_client)) {
+      throw new BadRequestException('Invalid client ID');
+    }
+    const reservations = await this.reservationsService.getCompletedReservationsByClient(id_client);
+    return {
+      success: true,
+      data: reservations,
+    };
   }
 
-  // Récupérer les réservations non terminées par client (status != "completed")
-  @Get('client/:id/non-completed')
-  async getNonCompletedReservationsByClient(@Param('id') id_client: string): Promise<Reservation[]> {
-    return this.reservationsService.getNonCompletedReservationsByClient(id_client);
+  // @Get('client/:id_client/non-completed')
+  // async getNonCompletedReservationsByClient(@Param('id_client') id_client: string) {
+  //   return this.reservationsService.getNonCompletedReservationsByClient(id_client);
+  // }
+
+  @Get('client/:id_client/non-completed-or-canceled')
+  async getNonCompletedOrCanceledReservationsByClient(@Param('id_client') id_client: string) {
+    if (!isValidObjectId(id_client)) {
+      throw new BadRequestException('Invalid client ID');
+    }
+    const reservations = await this.reservationsService.getNonCompletedOrCanceledReservationsByClient(id_client);
+    return {
+      success: true,
+      data: reservations,
+    };
   }
 
-  // Récupérer les réservations par prestataire
+  @Get('client/:id_client/canceled')
+  async getCanceledReservationsByClient(@Param('id_client') id_client: string) {
+    if (!isValidObjectId(id_client)) {
+      throw new BadRequestException('Invalid client ID');
+    }
+    const reservations = await this.reservationsService.getCanceledReservationsByClient(id_client);
+    return {
+      success: true,
+      data: reservations,
+    };
+  }
+
   @Get('prestataire')
   async getReservationsByPrestataire(@Query('id_prestataire') id_prestataire: string) {
     try {
       console.log(`[CONTROLLER] Searching for prestataire: ${id_prestataire}`);
       const reservations = await this.reservationsService.getReservationsByPrestataire(id_prestataire);
-      
       return {
         success: true,
         data: reservations,
@@ -71,100 +103,57 @@ export class ReservationsController {
         return {
           success: true,
           data: [],
-          message: error.message
+          message: error.message,
         };
       }
       throw error;
     }
   }
 
-
-  // @Get('prestataire/:id_prestataire')
-  // async getReservationsByPrestataire(@Param('id_prestataire') id_prestataire: string) {
-  //   const reservations = await this.reservationsService.getReservationsByPrestataire(id_prestataire);
-  //   return {
-  //     success: true,
-  //     data: reservations,
-  //     count: reservations.length
-  //   };
-  // } 
-
-// reservations.controller.ts (NestJS)
-
-
-
-    // Récupérer une réservation par ID
-    @Get(':id')
-    async getReservationById(@Param('id') id: string) {
-      const reservation = await this.reservationsService.getReservationById(id);
-      return {
-        success: true,
-        data: reservation,
-      };
-    }
-  // Mettre à jour une réservation
-  // @Put(':id')
-  // async updateReservation(@Param('id') id: string, @Body() updateData: Partial<Reservation>) {
-  //   const reservation = await this.reservationsService.updateReservation(id, updateData);
-  //   return {
-  //     success: true,
-  //     data: reservation,
-  //   };
-  // }
-
- // Supprimer une réservation
-@Delete(':id')
-async deleteReservation(@Param('id') id: string) {
-  await this.reservationsService.deleteReservation(id);
-  return {
-    success: true,
-    message: 'Réservation supprimée avec succès',
-  };
-}
-
-
-@Put(':id/cancel')
-async cancelReservation(@Param('id') id: string) {
-  try {
-    const result = await this.reservationsService.cancelReservation(id);
+  @Put(':id')
+  async updateReservation(@Param('id') id: string, @Body() updateData: Partial<Reservation>) {
+    const reservation = await this.reservationsService.updateReservation(id, updateData);
     return {
       success: true,
-      message: result.matchingReservation 
-        ? 'Reservation canceled with waiting list promotion'
-        : 'Reservation canceled',
-      data: {
-        canceled: result.canceledReservation,
-        ...(result.matchingReservation && { promoted: result.matchingReservation })
-      }
+      data: reservation,
     };
-  } catch (error) {
-    throw new HttpException({
-      success: false,
-      message: error.message
-    }, error.status || 500);
   }
-}
 
+  @Delete(':id')
+  async deleteReservation(@Param('id') id: string) {
+    await this.reservationsService.deleteReservation(id);
+    return {
+      success: true,
+      message: 'Réservation supprimée avec succès',
+    };
+  }
 
+  @Put(':id/cancel')
+  async cancelReservation(@Param('id') id: string) {
+    try {
+      const result = await this.reservationsService.cancelReservation(id);
+      return {
+        success: true,
+        message: result.matchingReservation
+          ? 'Reservation canceled with waiting list promotion'
+          : 'Reservation canceled',
+        data: {
+          canceled: result.canceledReservation,
+          ...(result.matchingReservation && { promoted: result.matchingReservation }),
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        error.status || 500,
+      );
+    }
+  }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//lel points
-@Get('points/:userId')
+  @Get('points/:userId')
   async getPointsForUser(@Param('userId') userId: string) {
     try {
       const points = await this.reservationsService.getPointsForUser(userId);
@@ -183,122 +172,56 @@ async cancelReservation(@Param('id') id: string) {
     }
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@Get('verify/:id')
-async verifyReservation(@Param('id') id: string) {
-  const reservation = await this.reservationsService.verifyAndCompleteReservation(id);
-  return {
-    success: true,
-    data: reservation,
-    message: 'Réservation marquée comme complétée'
-  };
-}
-@Put(':id')
-async updateReservation(@Param('id') id: string, @Body() updateData: Partial<Reservation>) {
-  const reservation = await this.reservationsService.updateReservation(id, updateData);
-  return {
-    success: true,
-    data: reservation,
-  };
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@Post(':id/send-location')
-async sendLocationCard(
-  @Param('id') id: string,
-  @Body() body: { senderId: string; lat: number; lng: number }
-) {
-  console.log(`Received request to send location card for reservation ${id}`, body);
-  try {
-    const { senderId, lat, lng } = body;
-    const result = await this.reservationsService.sendLocationCard(id, senderId, lat, lng);
-    console.log('Location card sent successfully:', result);
+  @Get('verify/:id')
+  async verifyReservation(@Param('id') id: string) {
+    const reservation = await this.reservationsService.verifyAndCompleteReservation(id);
     return {
       success: true,
-      data: result,
-      message: 'Location card sent successfully',
+      data: reservation,
+      message: 'Réservation marquée comme complétée',
     };
-  } catch (error) {
-    console.error('Error sending location card:', error);
-    throw new HttpException(
-      {
-        success: false,
-        message: error.message,
-      },
-      error.status || 500,
-    );
   }
-}
 
+  @Post(':id/send-location')
+  async sendLocationCard(
+    @Param('id') id: string,
+    @Body() body: { senderId: string; lat: number; lng: number },
+  ) {
+    console.log(`Received request to send location card for reservation ${id}`, body);
+    try {
+      const { senderId, lat, lng } = body;
+      const result = await this.reservationsService.sendLocationCard(id, senderId, lat, lng);
+      console.log('Location card sent successfully:', result);
+      return {
+        success: true,
+        data: result,
+        message: 'Location card sent successfully',
+      };
+    } catch (error) {
+      console.error('Error sending location card:', error);
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        error.status || 500,
+      );
+    }
+  }
 
-
-
-
-@Post(':id/rate')
+  @Post(':id/rate')
   async ratePrestataire(
     @Param('id') reservationId: string,
-    @Body() body: { prestataireId: string; rating: number }
+    @Body() body: { prestataireId: string; rating: number },
   ) {
     await this.reservationsService.submitRating(
       reservationId,
       body.prestataireId,
-      body.rating
+      body.rating,
     );
     return {
       success: true,
-      message: 'Évaluation enregistrée avec succès'
+      message: 'Évaluation enregistrée avec succès',
     };
   }
 }

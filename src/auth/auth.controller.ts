@@ -1,10 +1,11 @@
-import { Controller, Post, Body, UploadedFile, UseInterceptors, ValidationPipe } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { Controller, Post, Body, Req, ValidationPipe, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Client } from '../clients/client.schema';
 import { Prestataire } from '../prestataires/prestataire.schema';
 import { IsEmail, IsString, MinLength } from 'class-validator';
+import { FastifyRequest } from 'fastify';
+import * as fs from 'fs/promises';
+import { join } from 'path';
 
 class SignInBody {
   @IsEmail()
@@ -51,46 +52,43 @@ export class AuthController {
   }
 
   @Post('signup')
-  @UseInterceptors(
-    FileInterceptor('image', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const fileExt = file.originalname.split('.').pop();
-          cb(null, `${file.fieldname}-${uniqueSuffix}.${fileExt}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        console.log('Uploaded file:', file);
+  async signUp(@Req() req: FastifyRequest): Promise<{ message: string; user: Client | Prestataire }> {
+    const parts = req.parts();
+    const fields: Record<string, string> = {};
+    let imagePath = '';
+
+    for await (const part of parts) {
+      if (part.type === 'file') {
         const allowedExtensions = /\.(jpg|jpeg|png|gif)$/i;
-        const ext = file.originalname.toLowerCase();
-        if (!allowedExtensions.test(ext)) {
-          console.log('Rejected file due to invalid extension:', ext);
-          return cb(new Error('Only image files are allowed!'), false);
+        if (!allowedExtensions.test(part.filename)) {
+          throw new Error('Only image files are allowed!');
         }
-        cb(null, true);
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
-      },
-    }),
-  )
-  async signUp(
-    @Body() body: any,
-    @UploadedFile() file?: Express.Multer.File,
-  ): Promise<{ message: string; user: Client | Prestataire }> {
-    if (file) {
-      body.image = `/uploads/${file.filename}`;
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const fileExt = part.filename.split('.').pop();
+        const filename = `image-${uniqueSuffix}.${fileExt}`;
+        imagePath = `/uploads/${filename}`;
+        const filePath = join(__dirname, '..', '..', 'uploads', filename);
+        await fs.writeFile(filePath, await part.toBuffer());
+      } else {
+        fields[part.fieldname] = part.value as string;
+      }
     }
+
+    if (!fields.userType || !['client', 'prestataire'].includes(fields.userType)) {
+      throw new BadRequestException('userType must be either "client" or "prestataire"');
+    }
+
+    const body = {
+      ...fields,
+      image: imagePath || '',
+    };
+
     return this.authService.signUp(body);
   }
 
   @Post('forgot-password')
   async forgotPassword(@Body(ValidationPipe) body: ForgotPasswordBody) {
-    console.log('Received forgot-password request for:', body.email);
     const result = await this.authService.forgotPassword(body.email);
-    console.log('Sending response:', { success: true, data: result });
     return {
       success: true,
       data: result,

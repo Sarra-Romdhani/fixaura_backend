@@ -1,15 +1,14 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Get, NotFoundException, Param, Put, Query, Req } from '@nestjs/common';
 import { PrestatairesService } from './prestataires.service';
 import { Prestataire } from './prestataire.schema';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { FastifyRequest } from 'fastify';
 import { extname } from 'path';
-import sharp from 'sharp';
+import * as fs from 'fs';
+import { Multipart } from '@fastify/multipart';
 
 @Controller('prestataires')
 export class PrestatairesController {
   constructor(private readonly prestatairesService: PrestatairesService) {}
-
 
   @Get()
   async getAllPrestataires() {
@@ -48,6 +47,15 @@ export class PrestatairesController {
   @Get('category/:category')
   async searchByCategoryParam(@Param('category') category: string) {
     const prestataires = await this.prestatairesService.searchByCategory(category);
+    return {
+      success: true,
+      data: prestataires,
+    };
+  }
+
+  @Get('top-rated/:category')
+  async getTopRatedPrestatairesByJobInCategory(@Param('category') category: string) {
+    const prestataires = await this.prestatairesService.getTopRatedPrestatairesByJobInCategory(category);
     return {
       success: true,
       data: prestataires,
@@ -132,112 +140,140 @@ export class PrestatairesController {
     };
   }
 
-@Get(':id/statistics')
-async getBookingStatistics(@Param('id') id: string) {
-  const statistics = await this.prestatairesService.getBookingStatistics(id);
-  return {
-    success: true,
-    data: statistics,
-  };
-}
+  @Get(':id/statistics')
+  async getBookingStatistics(@Param('id') id: string) {
+    const statistics = await this.prestatairesService.getBookingStatistics(id);
+    return {
+      success: true,
+      data: statistics,
+    };
+  }
 
-@Put(':id')
-@UseInterceptors(FileInterceptor('image', {
-  storage: diskStorage({
-    destination: './uploads/profiles',
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      const filename = `profile-${req.params.id}-${uniqueSuffix}${extname(file.originalname)}`;
-      console.log('Saving file as:', filename);
-      cb(null, filename);
-    }
-  }),
-  fileFilter: (req, file, cb) => {
-    console.log('File received:', file);
-    if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
-      console.log('Rejected file type:', file.mimetype);
-      return cb(new BadRequestException('Seules les images (jpg, jpeg, png, gif) sont autorisées'), false);
-    }
-    cb(null, true);
-  },
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
-}))
-async updatePrestataire(
-  @Param('id') id: string,
-  @Body() body: any,
-  @UploadedFile() file?: Express.Multer.File,
-): Promise<Prestataire> {
-  console.log('Update request received for ID:', id);
-  console.log('Request body:', body);
-  console.log('Uploaded file:', file ? file : 'No file uploaded');
+  @Put(':id')
+  async updatePrestataire(
+    @Param('id') id: string,
+    @Req() request: FastifyRequest,
+  ): Promise<Prestataire> {
+    console.log('Update request received for ID:', id);
 
-  const updateData: Partial<Prestataire> = {
-    name: body.name,
-    job: body.job,
-    phoneNumber: body.phoneNumber,
-    businessAddress: body.businessAddress,
-    facebook: body.facebook,
-    instagram: body.instagram,
-    website: body.website
-  };
+    const updateData: Partial<Prestataire> = {};
 
-  try {
-    if (file) {
-      updateData.image = `/uploads/profiles/${file.filename}`;
-      console.log('New image path set to:', updateData.image);
-    } else {
-      console.log('No file provided, keeping existing image or clearing if undefined');
-    }
+    try {
+      // Ensure the upload directory exists
+      const uploadDir = './uploads/profiles';
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
 
-    const updated = await this.prestatairesService.updatePrestataire(id, updateData);
-    if (!updated) {
-      console.log('Update failed: Prestataire not found');
-      throw new NotFoundException('Prestataire non trouvé après mise à jour');
+      // Check if the request contains multipart data
+      const isMultipart = await request.isMultipart();
+      if (!isMultipart) {
+        throw new BadRequestException('Request must be multipart/form-data');
+      }
+
+      // Collect form fields and files
+      const parts = request.parts();
+      for await (const part of parts) {
+        if (part.type === 'file' && part.fieldname === 'image') {
+          // Handle file part
+          if (!part.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+            throw new BadRequestException('Seules les images (jpg, jpeg, png, gif) sont autorisées');
+          }
+
+          // Generate a unique filename
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const filename = `profile-${id}-${uniqueSuffix}${extname(part.filename)}`;
+          const fileDestination = `${uploadDir}/${filename}`;
+
+          // Save the file to disk
+          await new Promise<void>((resolve, reject) => {
+            const writeStream = fs.createWriteStream(fileDestination);
+            part.file.pipe(writeStream);
+            writeStream.on('finish', () => resolve());
+            writeStream.on('error', reject);
+          });
+
+          // Set the image path for the update
+          updateData.image = `/uploads/profiles/${filename}`;
+          console.log('New image path set to:', updateData.image);
+        } else if (part.type === 'field' && part.fieldname) {
+          // Handle form field
+          const value = part.value;
+          if (value !== undefined) {
+            switch (part.fieldname) {
+              case 'name':
+                updateData.name = value as string;
+                break;
+              case 'job':
+                updateData.job = value as string;
+                break;
+              case 'phoneNumber':
+                updateData.phoneNumber = value as string;
+                break;
+              case 'businessAddress':
+                updateData.businessAddress = value as string;
+                break;
+              case 'facebook':
+                updateData.facebook = value as string;
+                break;
+              case 'instagram':
+                updateData.instagram = value as string;
+                break;
+              case 'website':
+                updateData.website = value as string;
+                break;
+            }
+          }
+        }
+      }
+
+      console.log('Parsed update data:', updateData);
+
+      // Validate required fields
+      if (!updateData.name || !updateData.job || !updateData.businessAddress) {
+        throw new BadRequestException('Name, job, and business address are required');
+      }
+
+      const updated = await this.prestatairesService.updatePrestataire(id, updateData);
+      if (!updated) {
+        console.log('Update failed: Prestataire not found');
+        throw new NotFoundException('Prestataire non trouvé après mise à jour');
+      }
+      console.log('Updated prestataire:', updated);
+      return updated;
+    } catch (error) {
+      console.error('Detailed update error:', error.stack || error);
+      throw error;
     }
-    console.log('Updated prestataire:', updated);
-    return updated;
-  } catch (error) {
-    console.error('Detailed update error:', error.stack || error);
-    throw error; // Let NestJS handle the exception properly
+  }
+
+  @Get('exclude/:id')
+  async getAllPrestatairesExcept(@Param('id') id: string) {
+    const prestataires = await this.prestatairesService.getAllPrestatairesExcept(id);
+    return {
+      success: true,
+      data: prestataires,
+    };
+  }
+
+  @Get('different-job/:id')
+  async getPrestatairesWithDifferentJob(@Param('id') id: string) {
+    const prestataires = await this.prestatairesService.findPrestatairesWithDifferentJob(id);
+    return {
+      success: true,
+      data: prestataires,
+    };
+  }
+
+  @Get('different-job/:id/search')
+  async searchByNameWithDifferentJob(
+    @Param('id') id: string,
+    @Query('name') name?: string,
+  ) {
+    const prestataires = await this.prestatairesService.searchByNameWithDifferentJob(id, name);
+    return {
+      success: true,
+      data: prestataires,
+    };
   }
 }
-
-
-
-// New endpoint to fetch all prestataires except the one with the given ID
-@Get('exclude/:id')
-async getAllPrestatairesExcept(@Param('id') id: string) {
-  const prestataires = await this.prestatairesService.getAllPrestatairesExcept(id);
-  return {
-    success: true,
-    data: prestataires,
-  };
-}
-
-
-
-// New endpoint to fetch prestataires with different jobs
-@Get('different-job/:id')
-async getPrestatairesWithDifferentJob(@Param('id') id: string) {
-  const prestataires = await this.prestatairesService.findPrestatairesWithDifferentJob(id);
-  return {
-    success: true,
-    data: prestataires,
-  };
-}
-
-// New endpoint to search prestataires with different jobs by name
-@Get('different-job/:id/search')
-async searchByNameWithDifferentJob(
-  @Param('id') id: string,
-  @Query('name') name?: string,
-) {
-  const prestataires = await this.prestatairesService.searchByNameWithDifferentJob(id, name);
-  return {
-    success: true,
-    data: prestataires,
-  };
-}
-
-}
-

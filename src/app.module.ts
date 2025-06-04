@@ -14,6 +14,7 @@ import { join } from 'path';
 import { MessagesModule } from './messages/messages.module';
 import { PointsModule } from './points/points.module';
 import { LocationsModule } from './locations/locations.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
 
 
 
@@ -32,6 +33,7 @@ import { LocationsModule } from './locations/locations.module';
     MessagesModule,
     PointsModule,
     LocationsModule,
+    ChatbotModule,
     
   ],
   controllers: [AppController],

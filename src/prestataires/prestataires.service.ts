@@ -326,11 +326,38 @@ async searchByNameWithDifferentJob(id: string, name?: string): Promise<Prestatai
   return prestataires;
 }
 
+// prestataires.service.ts
+async getTopRatedPrestatairesByJobInCategory(category: string): Promise<Prestataire[]> {
+  try {
+    // Step 1: Find all distinct jobs in the given category
+    const jobs = await this.prestataireModel.distinct('job', { category: { $regex: new RegExp(category, 'i') } }).exec();
 
+    if (!jobs || jobs.length === 0) {
+      throw new NotFoundException(`No jobs found for category: ${category}`);
+    }
 
+    // Step 2: For each job, find the prestataire with the highest rating
+    const topRatedPrestataires = await Promise.all(
+      jobs.map(async (job) => {
+        const prestataire = await this.prestataireModel
+          .findOne({
+            category: { $regex: new RegExp(category, 'i') },
+            job: { $regex: new RegExp(job, 'i') },
+          })
+          .sort({ rating: -1 }) // Sort by rating in descending order
+          .exec();
+        return prestataire;
+      })
+    );
 
+    // Step 3: Filter out any null results (in case a job has no prestataires)
+    const validPrestataires = topRatedPrestataires.filter((prestataire) => prestataire !== null);
 
-
-
-
+    console.log(`Top-rated prestataires for category ${category}:`, validPrestataires);
+    return validPrestataires;
+  } catch (error) {
+    console.error('Error fetching top-rated prestataires:', error.stack || error);
+    throw error;
+  }
+}
 }

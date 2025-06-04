@@ -21,7 +21,7 @@ export class AuthService {
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('EMAIL_HOST'),
       port: this.configService.get<number>('EMAIL_PORT'),
-      secure: false, // true for 465, false for other ports
+      secure: false,
       auth: {
         user: this.configService.get<string>('EMAIL_USER'),
         pass: this.configService.get<string>('EMAIL_PASS'),
@@ -31,66 +31,88 @@ export class AuthService {
 
   async signIn(email: string, password: string): Promise<{ user: any; type: 'prestataire' | 'client' }> {
     console.log(`Attempting to sign in with email: ${email}`);
-    console.log(`Provided password: ${password}`);
-
-    const prestataire = await this.prestataireModel.findOne({ email }).exec();
-    if (prestataire) {
-      console.log('Prestataire found:', JSON.stringify(prestataire, null, 2));
-      console.log('Stored prestataire password:', prestataire.password);
-      const isPasswordValid = await bcrypt.compare(password, prestataire.password);
-      console.log('Password valid for prestataire:', isPasswordValid);
-      if (isPasswordValid) {
-        return {
-          user: {
-            id: prestataire._id,
-            name: prestataire.name,
-            email: prestataire.email,
-            job: prestataire.job,
-            category: prestataire.category,
-            businessAddress: prestataire.businessAddress,
-            available: prestataire.available,
-            minPrice: prestataire.minPrice,
-            maxPrice: prestataire.maxPrice,
-            business_id: prestataire.businessID,
-            image: prestataire.image,
-          },
-          type: 'prestataire',
-        };
+    console.log(`Provided password length: ${password.length}`);
+  
+    try {
+      const prestataire = await this.prestataireModel.findOne({ email }).exec();
+      if (prestataire) {
+        console.log('Prestataire found:', JSON.stringify(prestataire, null, 2));
+        console.log('Stored prestataire password:', prestataire.password);
+        try {
+          const isPasswordValid = await bcrypt.compare(password, prestataire.password);
+          console.log('Password valid for prestataire:', isPasswordValid);
+          if (isPasswordValid) {
+            return {
+              user: {
+                id: prestataire._id,
+                name: prestataire.name,
+                email: prestataire.email,
+                job: prestataire.job,
+                category: prestataire.category,
+                businessAddress: prestataire.businessAddress,
+                available: prestataire.available,
+                maxPrice: prestataire.maxPrice,
+                businessID: prestataire.businessID,
+                image: prestataire.image,
+                status: prestataire.status,
+              },
+              type: 'prestataire',
+            };
+          } else {
+            console.log('Invalid password for prestataire');
+          }
+        } catch (bcryptError) {
+          console.error('Bcrypt compare error for prestataire:', bcryptError);
+          throw new InternalServerErrorException('Error validating password');
+        }
+      } else {
+        console.log('No prestataire found for email:', email);
       }
-    } else {
-      console.log('No prestataire found for email:', email);
-    }
-
-    const client = await this.clientModel.findOne({ email }).exec();
-    if (client) {
-      console.log('Client found:', JSON.stringify(client, null, 2));
-      console.log('Stored client password:', client.password);
-      const isPasswordValid = await bcrypt.compare(password, client.password);
-      console.log('Password valid for client:', isPasswordValid);
-      if (isPasswordValid) {
-        return {
-          user: {
-            id: client._id,
-            name: client.name,
-            email: client.email,
-          businessAddress: client.homeAddress,
-          },
-          type: 'client',
-        };
+  
+      const client = await this.clientModel.findOne({ email }).exec();
+      if (client) {
+        console.log('Client found:', JSON.stringify(client, null, 2));
+        console.log('Stored client password:', client.password);
+        try {
+          const isPasswordValid = await bcrypt.compare(password, client.password);
+          console.log('Password valid for client:', isPasswordValid);
+          if (isPasswordValid) {
+            return {
+              user: {
+                id: client._id,
+                name: client.name,
+                email: client.email,
+                homeAddress: client.homeAddress,
+              },
+              type: 'client',
+            };
+          } else {
+            console.log('Invalid password for client');
+          }
+        } catch (bcryptError) {
+          console.error('Bcrypt compare error for client:', bcryptError);
+          throw new InternalServerErrorException('Error validating password');
+        }
+      } else {
+        console.log('No client found for email:', email);
       }
-    } else {
-      console.log('No client found for email:', email);
+  
+      console.log('No user found or password invalid for email:', email);
+      throw new UnauthorizedException('Invalid credentials');
+    } catch (error) {
+      console.error('Error during sign-in:', error);
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to process sign-in request');
     }
-
-    console.log('No user found or password invalid for email:', email);
-    throw new UnauthorizedException('Invalid credentials');
   }
 
   async signUp(data: any): Promise<{ message: string; user: Client | Prestataire }> {
+    console.log('Signup data:', JSON.stringify(data, null, 2));
     if (!data.userType || !['client', 'prestataire'].includes(data.userType)) {
       throw new BadRequestException('userType must be either "client" or "prestataire"');
     }
-
     if (!data.name || typeof data.name !== 'string') {
       throw new BadRequestException('Name is required and must be a string');
     }
@@ -101,16 +123,23 @@ export class AuthService {
       throw new BadRequestException('Password is required and must be a string');
     }
 
+    const normalizedEmail = data.email.toLowerCase();
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(data.password, saltRounds);
 
+    // Normalize status to match expected values
+    const normalizedStatus = data.status && typeof data.status === 'string'
+      ? data.status.charAt(0).toUpperCase() + data.status.slice(1).toLowerCase()
+      : data.status;
+
     if (data.userType === 'client') {
-      const existingClient = await this.clientModel.findOne({ email: data.email }).exec();
+      const existingClient = await this.clientModel.findOne({ email: normalizedEmail }).exec();
       if (existingClient) {
         throw new ConflictException('Email already exists');
       }
 
-      if (data.homeAddress && typeof data.homeAddress !== 'string') {
+      const homeAddress = typeof data.homeAddress === 'object' ? data.homeAddress.address : data.homeAddress || '';
+      if (typeof homeAddress !== 'string') {
         throw new BadRequestException('homeAddress must be a string');
       }
       if (data.image && typeof data.image !== 'string') {
@@ -122,9 +151,9 @@ export class AuthService {
 
       const newClient = new this.clientModel({
         name: data.name,
-        email: data.email,
+        email: normalizedEmail,
         password: hashedPassword,
-        homeAddress: data.homeAddress || '',
+        homeAddress,
         image: data.image || '',
         phoneNumber: data.phoneNumber || '',
       });
@@ -133,7 +162,7 @@ export class AuthService {
       return { message: 'Client registered successfully', user: savedClient };
     } else {
       const existingPrestataire = await this.prestataireModel.findOne({
-        $or: [{ email: data.email }, { businessID: data.businessID }],
+        $or: [{ email: normalizedEmail }, { businessID: data.businessID }],
       }).exec();
       if (existingPrestataire) {
         throw new ConflictException('Email or businessID already exists');
@@ -142,19 +171,18 @@ export class AuthService {
       if (!data.category || typeof data.category !== 'string') {
         throw new BadRequestException('category is required and must be a string');
       }
-      if (!data.businessAddress || typeof data.businessAddress !== 'string') {
-        throw new BadRequestException('business Address is required and must be a string');
+      const businessAddress = typeof data.businessAddress === 'object' ? data.businessAddress.address : data.businessAddress || '';
+      if (typeof businessAddress !== 'string') {
+        throw new BadRequestException('businessAddress must be a string');
       }
       if (data.available !== undefined && typeof data.available !== 'boolean') {
         throw new BadRequestException('available must be a boolean');
       }
-
-      const minPrice = typeof data.minPrice === 'string' ? parseFloat(data.minPrice) : data.minPrice;
-      const maxPrice = typeof data.maxPrice === 'string' ? parseFloat(data.maxPrice) : data.maxPrice;
-
-      if (!minPrice || typeof minPrice !== 'number' || isNaN(minPrice)) {
-        throw new BadRequestException('minPrice is required and must be a number');
+      if (!normalizedStatus || !['Indépendant', 'Société'].includes(normalizedStatus)) {
+        throw new BadRequestException('status must be either "Indépendant" or "Société"');
       }
+
+      const maxPrice = typeof data.maxPrice === 'string' ? parseFloat(data.maxPrice) : data.maxPrice;
       if (!maxPrice || typeof maxPrice !== 'number' || isNaN(maxPrice)) {
         throw new BadRequestException('maxPrice is required and must be a number');
       }
@@ -180,20 +208,20 @@ export class AuthService {
 
       const newPrestataire = new this.prestataireModel({
         name: data.name,
-        email: data.email,
+        email: normalizedEmail,
         password: hashedPassword,
         job: data.job,
         category: data.category,
-        businessAddress: data.businessAddress,
+        businessAddress,
         available: data.available !== undefined ? data.available : true,
-        minPrice: minPrice,
-        maxPrice: maxPrice,
+        maxPrice,
         businessID: data.businessID,
         image: data.image || '',
         phoneNumber: data.phoneNumber || '',
         facebook: data.facebook || '',
         instagram: data.instagram || '',
         website: data.website || '',
+        status: normalizedStatus,
       });
 
       const savedPrestataire = await newPrestataire.save();
@@ -291,7 +319,6 @@ export class AuthService {
         return { message: 'Password reset successful' };
       }
 
-      // This line should never be reached due to the earlier check, but added for TypeScript
       throw new InternalServerErrorException('Unexpected error during password reset');
     } catch (error) {
       console.error('Reset password error:', error);

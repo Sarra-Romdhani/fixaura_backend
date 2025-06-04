@@ -1,6 +1,7 @@
-import { Controller, Get, Param, NotFoundException, Body, Put, UnauthorizedException, Query } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, Body, Put, UnauthorizedException, Query, Req } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { Client } from './client.schema';
+import { FastifyRequest } from 'fastify';
 
 @Controller('clients')
 export class ClientsController {
@@ -13,8 +14,7 @@ export class ClientsController {
       return {
         success: true,
         data: client,
-      };
-      
+      };      
     } catch (error) { 
       if (error instanceof NotFoundException) {
         throw error;
@@ -22,14 +22,24 @@ export class ClientsController {
       throw new NotFoundException('Error retrieving client profile');
     }
   }
-
-  @Put(':id') // or @Put(':id') depending on your preference
+  
+  @Put(':id')
   async updateClient(
     @Param('id') id: string,
-    @Body() updateData: Partial<Client>,
+    @Req() req: FastifyRequest,
   ) {
     try {
-      const updatedClient = await this.clientsService.updateClient(id, updateData);
+      // Extract the file using req.file()
+      const fileData = await req.file();
+      let file: { file: any; filename: string } | undefined;
+      if (fileData) {
+        file = { file: fileData.file, filename: fileData.filename };
+      }
+
+      // Extract fields from req.body (already parsed by @fastify/multipart)
+      const updateData: Partial<Client> = req.body || {};
+
+      const updatedClient = await this.clientsService.updateClient(id, updateData, file);
       return {
         success: true,
         data: updatedClient,
@@ -42,8 +52,6 @@ export class ClientsController {
     }
   }
 
-
-  // clients.controller.ts
   @Get('/search')
   async searchClients(@Query('query') query: string, @Query('excludeId') excludeId: string) {
     const clients = await this.clientsService.searchClients(query, excludeId);
@@ -52,7 +60,6 @@ export class ClientsController {
       data: clients,
     };
   }
-  
   
   @Put(':id/password')
   async updateClientPassword(
