@@ -1,590 +1,185 @@
-// // import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, UploadedFile, UseInterceptors, BadRequestException, NotFoundException, InternalServerErrorException, Req } from '@nestjs/common';
-// // import { PublicationsService } from './publications.service';
-// // import { Publication } from './publication.schema';
-// // import { diskStorage } from 'multer';
-// // import { FileInterceptor } from '@nestjs/platform-express';
-// // import path, { extname, join } from 'path';
-// // import * as fs from 'fs';
-// // import { Types } from 'mongoose';
-// // import { FastifyRequest } from 'fastify';
-// // import { MultipartFile } from 'fastify-multipart';
-
-// // @Controller('publications')
-// // export class PublicationsController {
-// //   private readonly baseUrl = process.env.BASE_URL || 'http://192.168.1.34:3000';
-// //   constructor(private readonly publicationsService: PublicationsService) {}
-// //   // @Post()
-// //   // @UseInterceptors(FileInterceptor('image', {
-// //   //   storage: diskStorage({
-// //   //     destination: './uploads/publications',
-// //   //     filename: (req, file, cb) => {
-// //   //       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-// //   //       const ext = extname(file.originalname);
-// //   //       cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-// //   //     }
-// //   //   })
-// //   // }))
-// //   // async create(
-// //   //   @UploadedFile() file: Express.Multer.File,
-// //   //   @Body() body: { title: string; description: string; providerId: string }
-// //   // ) {
-// //   //   if (!file) {
-// //   //     throw new BadRequestException('Image is required');
-// //   //   }
-  
-// //   //   // Construct full URL
-// //   //   const baseUrl = 'http://192.168.1.38:3000'; // Replace with your actual IP/domain
-// //   //   const imageUrl = `${baseUrl}/uploads/publications/${file.filename}`;
-  
-// //   //   return this.publicationsService.create({
-// //   //     title: body.title,
-// //   //     description: body.description,
-// //   //     providerId: body.providerId,
-// //   //     picture: imageUrl // Store full URL
-// //   //   });
-// //   // }
-
-// // // publications.controller.ts - Fix file handling
-// // @Post()
-// // @UseInterceptors(FileInterceptor('image', {
-// //   storage: diskStorage({
-// //     destination: './uploads/publications',
-// //     filename: (req, file, cb) => {
-// //       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-// //       cb(null, `pub-${uniqueSuffix}${extname(file.originalname)}`);
-// //     }
-// //   }),
-// //   fileFilter: (req, file, cb) => {
-// //     if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-// //       return cb(new BadRequestException('Only image files are allowed!'), false);
-// //     }
-// //     cb(null, true);
-// //   }
-// // }))
-// // async create(
-// //   @UploadedFile() file: Express.Multer.File,
-// //   @Body() body: { title: string; description: string; providerId: string }
-// // ) {
-// //   const imageUrl = `${this.baseUrl}/uploads/publications/${file.filename}`;
-  
-// //   return this.publicationsService.create({
-// //     title: body.title,
-// //     description: body.description,
-// //     providerId: body.providerId,
-// //     picture: imageUrl
-// //   });
-// // }
-
-// // @Put(':id')
-// // @UseInterceptors(FileInterceptor('image', {
-// //   storage: diskStorage({
-// //     destination: './uploads/publications',
-// //     filename: (req, file, cb) => {
-// //       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-// //       cb(null, `pub-${uniqueSuffix}${extname(file.originalname)}`);
-// //     }
-// //   }),
-// //   fileFilter: (req, file, cb) => {
-// //     if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-// //       return cb(new BadRequestException('Only image files are allowed!'), false);
-// //     }
-// //     cb(null, true);
-// //   }
-// // }))
-// // async update(
-// //   @Param('id') id: string,
-// //   @UploadedFile() file: Express.Multer.File,
-// //   @Body() body: { title: string; description: string; providerId: string }
-// // ) {
-// //   const imageUrl = file ? `${this.baseUrl}/uploads/publications/${file.filename}` : null;
-  
-// //   return this.publicationsService.updatePublication(id, {
-// //     title: body.title,
-// //     description: body.description,
-// //     providerId: body.providerId,
-// //     ...(imageUrl && { picture: imageUrl })
-// //   });
-// // }
-
-// //   @Delete(':id')
-// //   async remove(@Param('id') id: string) {
-// //     const publication = await this.publicationsService.findOne(id);
-// //     if (publication.picture && !publication.picture.includes('undefined')) {
-// //       const imagePath = publication.picture.split('/uploads/publications/')[1];
-// //       const fullPath = join(__dirname, '..', '..', 'Uploads', 'publications', imagePath);
-// //       if (fs.existsSync(fullPath)) {
-// //         fs.unlinkSync(fullPath);
-// //       }
-// //     }
-// //     return this.publicationsService.remove(id);
-// //   }
-
-
-
-// //   // @Post()
-// //   // create(@Body() body: any): Promise<Publication> {
-// //   //   return this.publicationsService.create(body);
-// //   // }
-
-// //   @Get()
-// //   findAll(): Promise<Publication[]> {
-// //     return this.publicationsService.findAll();
-// //   }
-
- 
-// //   // @Put(':id')
-// //   // @UseInterceptors(FileInterceptor('image', {
-// //   //   storage: diskStorage({
-// //   //     destination: './uploads/publications',
-// //   //     filename: (req, file, cb) => {
-// //   //       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-// //   //       const ext = extname(file.originalname);
-// //   //       cb(null, `pub-${uniqueSuffix}${ext}`);
-// //   //     },
-// //   //   }),
-// //   // }))
-// //   // async updateWithImage(
-// //   //   @Param('id') id: string,
-// //   //   @UploadedFile() file: Express.Multer.File,
-// //   //   @Body() body: { title: string; description: string, providerId: string },
-// //   // ) {
-// //   //   try {
-// //   //     const updateData = {
-// //   //       title: body.title,
-// //   //       description: body.description,
-// //   //       providerId: body.providerId,
-// //   //       ...(file && { picture: `/uploads/publications/${file.filename}` })
-// //   //     };
-
-// //   //     const updated = await this.publicationsService.updatePublication(id, updateData);
-      
-// //   //     return {
-// //   //       statusCode: 200,
-// //   //       message: 'Publication mise à jour avec succès',
-// //   //       data: updated
-// //   //     };
-// //   //   } catch (error) {
-// //   //     console.error('Erreur de mise à jour:', error);
-// //   //     throw error;
-// //   //   }
-// //   // }
-// // // publications.controller.ts
-
-
-// //   // @Delete(':id')
-// //   // remove(@Param('id') id: string): Promise<void> {
-// //   //   return this.publicationsService.remove(id);
-// //   // }
-
-// //   @Get('prestataire/:prestataireId')
-// //   @HttpCode(200)
-// //   async findByPrestataire(@Param('prestataireId') prestataireId: string) {
-// //     const publications = await this.publicationsService.findByPrestataireId(prestataireId);
-// //     return {
-// //       success: true,
-// //       message: 'Publications retrieved successfully',
-// //       data: publications,
-// //     };
-// //   }
-
-
-
-
-// //   // Ajouter ces nouvelles routes
-// //   @Post(':id/like')
-// //   async toggleLike(
-// //     @Param('id') id: string,
-// //     @Body() body: { userId: string },
-// //   ) {
-// //     return this.publicationsService.toggleLike(id, body.userId);
-// //   }
-
-// //   @Post(':id/comment')
-// //   async addComment(
-// //     @Param('id') id: string,
-// //     @Body() body: { userId: string; text: string; userName?: string; userImageUrl?: string; userType?: string },
-// //   ) {
-// //     return this.publicationsService.addComment(
-// //       id,
-// //       body.userId,
-// //       body.text,
-   
-// //     );
-// //   }
-
-// //   @Put(':publicationId/comments/:commentId')
-// //   async updateComment(
-// //     @Param('publicationId') publicationId: string,
-// //     @Param('commentId') commentId: string,
-// //     @Body() updateCommentDto: { text: string },
-// //   ) {
-// //     return this.publicationsService.updateComment(publicationId, commentId, updateCommentDto.text);
-// //   }
-// //   @Delete(':publicationId/comments/:commentId')
-// //   async deleteComment(
-// //     @Param('publicationId') publicationId: string,
-// //     @Param('commentId') commentId: string,
-// //   ) {
-// //     return this.publicationsService.deleteComment(publicationId, commentId);
-// //   }
-// // }
-// import { Injectable, BadRequestException, NotFoundException, Put } from '@nestjs/common';
-// import { InjectModel } from '@nestjs/mongoose';
-// import { Model, Types } from 'mongoose';
-// import { Publication } from './publication.schema';
-// import path, { join } from 'path';
-// import * as fs from 'fs';
-
-
-// @Injectable()
-// export class PublicationsService {
-//   constructor( 
-//     @InjectModel(Publication.name) private publicationModel: Model<Publication>,
-//   ) {}
-
-//   // Créer une nouvelle publication
-//   // async create(data: any): Promise<Publication> {
-//   //   // Validation manuelle
-//   //   if (!data.title || typeof data.title !== 'string') {
-//   //     throw new BadRequestException('Title is required and must be a string');
-//   //   }
-//   //   if (!data.description || typeof data.description !== 'string') {
-//   //     throw new BadRequestException('Description is required and must be a string');
-//   //   }
-//   //   if (!data.providerId || typeof data.providerId !== 'string') {
-//   //     throw new BadRequestException('ProviderId is required and must be a string');
-//   //   }
-//   //   // Picture est optionnel, mais on vérifie que c'est une string si elle est fournie
-//   //   if (data.picture && typeof data.picture !== 'string') {
-//   //     throw new BadRequestException('Picture must be a string if provided');
-//   //   }
-
-//   //   const newPublication = new this.publicationModel({
-//   //     title: data.title,
-//   //     description: data.description,
-//   //     picture: data.picture || '', // Si picture n'est pas fourni, on met une chaîne vide
-//   //     providerId: data.providerId,
-//   //   });
-
-//   //   return newPublication.save();
-//   // }
-//   // async create(createDto: {
-//   //   title: string;
-//   //   description: string;
-//   //   providerId: string;
-//   //   picture: string;
-//   // }): Promise<Publication> {
-//   //   const publication = new this.publicationModel(createDto);
-//   //   return publication.save();
-//   // }
-//   async create(createDto: {
-//     title: string;
-//     description: string;
-//     providerId: string;
-//     picture?: string;
-//   }): Promise<Publication> {
-//     if (!createDto.title) throw new BadRequestException('Title is required');
-//     if (!createDto.description) throw new BadRequestException('Description is required');
-//     if (!createDto.providerId) throw new BadRequestException('ProviderId is required');
-
-//     const publication = new this.publicationModel({
-//       ...createDto,
-//       likes: [],
-//       comments: [],
-//     });
-//     return publication.save();
-//   }
-
-//   async updatePublication(id: string, updateData: {
-//     title: string;
-//     description: string;
-//     providerId: string;
-//     picture?: string;
-//   }) {
-//     if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid publication ID');
-//     const publication = await this.publicationModel.findByIdAndUpdate(id, updateData, { new: true });
-//     if (!publication) throw new NotFoundException('Publication not found');
-//     return publication;
-//   }
-//   // Récupérer toutes les publications
-//   async findAll(): Promise<Publication[]> {
-//     return this.publicationModel.find().exec();
-//   }
-
-//   // Récupérer une publication par ID
-//   async findOne(id: string): Promise<Publication> {
-//     if (!id || typeof id !== 'string') {
-//       throw new BadRequestException('ID must be a valid string');
-//     }
-//     const publication = await this.publicationModel.findById(id).exec();
-//     if (!publication) {
-//       throw new NotFoundException(`Publication with ID ${id} not found`);
-//     }
-//     return publication;
-//   }
-
-//   // Mettre à jour une publication
-//   // async updatePublication(id: string, updateData: any) {
-//   //   return this.publicationModel.findByIdAndUpdate(id, updateData, { new: true });
-//   // }
-
- 
-  
-
-  
-
-//   // Supprimer une publication
-//   async remove(id: string): Promise<void> {
-//     if (!id || typeof id !== 'string') {
-//       throw new BadRequestException('ID must be a valid string');
-//     }
-//     const result = await this.publicationModel.findByIdAndDelete(id).exec();
-//     if (!result) {
-//       throw new NotFoundException(`Publication with ID ${id} not found`);
-//     }
-//   }
-
- 
-
-//   async findByPrestataireId(prestataireId: string): Promise<Publication[]> {
-//     // Validate the prestataireId format
-//     if (!Types.ObjectId.isValid(prestataireId)) {
-//       throw new BadRequestException('Invalid prestataire ID format');
-//     }
-
-//     // Find all publications for this prestataire
-//     const publications = await this.publicationModel.find({ 
-//       providerId: prestataireId 
-//     }).exec();
-    
-//     return publications;
-//   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//   // Ajouter ces nouvelles méthodes
-//   async toggleLike(publicationId: string, userId: string) {
-//     const publication = await this.publicationModel.findById(publicationId);
-//     if (!publication) throw new NotFoundException('Publication not found');
-  
-//     const likes = publication.likes || [];
-//     const index = likes.indexOf(userId);
-//     if (index === -1) {
-//       likes.push(userId); // Like
-//     } else {
-//       likes.splice(index, 1); // Unlike
-//     }
-//     publication.likes = likes;
-//     await publication.save();
-  
-//     return { message: 'Like toggled successfully', likes: publication.likes };
-//   }
-
-//   async addComment(publicationId: string, userId: string, text: string) {
-//     if (!Types.ObjectId.isValid(publicationId)) {
-//       throw new BadRequestException('Invalid publication ID format');
-//     }
-//     const publication = await this.publicationModel.findById(publicationId);
-//     if (!publication) throw new NotFoundException('Publication not found');
-  
-//     const newComment = {
-//       userId,
-//       text,
-//       createdAt: new Date(),
-//     };
-//     publication.comments.push(newComment);
-//     await publication.save();
-  
-//     // Return the updated publication with comments
-//     return this.publicationModel.findById(publicationId).exec();
-//   }
-
-
-
-//   async updateComment(publicationId: string, commentId: string, newText: string) {
-//     if (!Types.ObjectId.isValid(publicationId) || !Types.ObjectId.isValid(commentId)) {
-//       throw new BadRequestException('Invalid ID format');
-//     }
-  
-//     const publication = await this.publicationModel.findById(publicationId);
-//     if (!publication) {
-//       throw new NotFoundException('Publication not found');
-//     }
-  
-//     const comment = publication.comments.find(
-//       (c: any) => c._id.toString() === commentId
-//     );
-  
-//     if (!comment) {
-//       throw new NotFoundException('Comment not found');
-//     }
-  
-//     comment.text = newText;
-//     await publication.save();
-//     return comment;
-//   }
-  
-//   async deleteComment(publicationId: string, commentId: string) {
-//     if (!Types.ObjectId.isValid(publicationId) || !Types.ObjectId.isValid(commentId)) {
-//       throw new BadRequestException('Invalid ID format');
-//     }
-  
-//     const publication = await this.publicationModel.findById(publicationId);
-//     if (!publication) {
-//       throw new NotFoundException('Publication not found');
-//     }
-  
-//     const initialLength = publication.comments.length;
-//     publication.comments = publication.comments.filter(
-//       (c: any) => c._id.toString() !== commentId
-//     );
-  
-//     if (publication.comments.length === initialLength) {
-//       throw new NotFoundException('Comment not found');
-//     }
-  
-//     await publication.save();
-//     return { message: 'Comment deleted successfully' };
-//   }
-  
-
-// }
-
-
-import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, UploadedFile, UseInterceptors, BadRequestException, NotFoundException, InternalServerErrorException, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  HttpCode,
+  BadRequestException,
+  NotFoundException,
+  InternalServerErrorException,
+  Req,
+  Param,
+  Body,
+} from '@nestjs/common';
 import { PublicationsService } from './publications.service';
 import { Publication } from './publication.schema';
-import { diskStorage } from 'multer';
-import { FileInterceptor } from '@nestjs/platform-express';
-import path, { extname, join } from 'path';
+import { extname } from 'path';
 import * as fs from 'fs';
-import { Types } from 'mongoose';
 import { FastifyRequest } from 'fastify';
+import { existsSync, mkdirSync } from 'fs';
 
 @Controller('publications')
 export class PublicationsController {
-  constructor(private readonly publicationsService: PublicationsService) {}
-  // @Post()
-  // @UseInterceptors(FileInterceptor('image', {
-  //   storage: diskStorage({
-  //     destination: './uploads/publications',
-  //     filename: (req, file, cb) => {
-  //       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-  //       const ext = extname(file.originalname);
-  //       cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-  //     }
-  //   })
-  // }))
-  // async create(
-  //   @UploadedFile() file: Express.Multer.File,
-  //   @Body() body: { title: string; description: string; providerId: string }
-  // ) {
-  //   if (!file) {
-  //     throw new BadRequestException('Image is required');
-  //   }
-  
-  //   // Construct full URL
-  //   const baseUrl = 'http://192.168.1.38:3000'; // Replace with your actual IP/domain
-  //   const imageUrl = `${baseUrl}/uploads/publications/${file.filename}`;
-  
-  //   return this.publicationsService.create({
-  //     title: body.title,
-  //     description: body.description,
-  //     providerId: body.providerId,
-  //     picture: imageUrl // Store full URL
-  //   });
-  // }
+  constructor(private readonly publicationsService: PublicationsService) {
+    this.ensureUploadsDirectoryExists();
+  }
+
+  private ensureUploadsDirectoryExists() {
+    const uploadPath = './uploads/publications';
+    if (!existsSync(uploadPath)) {
+      mkdirSync(uploadPath, { recursive: true });
+    }
+  }
 
   @Post()
-  @UseInterceptors(
-    FileInterceptor('image', {
-      storage: diskStorage({
-        destination: './uploads/publications',
-        filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        const allowedTypes = ['image/jpeg', 'image/png'];
-        if (!allowedTypes.includes(file.mimetype)) {
-          return cb(new BadRequestException('Only JPEG/PNG images are allowed'), false);
-        }
-        cb(null, true);
-      },
-    }),
-  )
-  async create(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: { title: string; description: string; providerId: string },
-  ) {
-    const baseUrl = 'http://192.168.1.38:3000'; // Replace with your actual IP/domain
-    const imageUrl = file ? `${baseUrl}/uploads/publications/${file.filename}` : '';
+  async create(@Req() request: FastifyRequest) {
+    try {
+      const uploadDir = './uploads/publications';
+      const updateData: Record<string, any> = {};
+      let imagePath: string | undefined;
 
-    return this.publicationsService.create({
-      title: body.title,
-      description: body.description,
-      providerId: body.providerId,
-      picture: imageUrl,
-    });
+      const isMultipart = await request.isMultipart();
+      if (!isMultipart) {
+        throw new BadRequestException('Request must be multipart/form-data');
+      }
+
+      const parts = request.parts();
+      for await (const part of parts) {
+        if (part.type === 'file' && part.fieldname === 'image') {
+          if (!part.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+            throw new BadRequestException('Only jpg, jpeg, or png images are allowed');
+          }
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          const filename = `${randomName}${extname(part.filename)}`;
+          const fileDestination = `${uploadDir}/${filename}`;
+          await new Promise<void>((resolve, reject) => {
+            const writeStream = fs.createWriteStream(fileDestination);
+            part.file.pipe(writeStream);
+            writeStream.on('finish', () => resolve());
+            writeStream.on('error', reject);
+          });
+          imagePath = `/uploads/publications/${filename}`;
+        } else if (part.type === 'field' && part.fieldname) {
+          updateData[part.fieldname] = part.value;
+        }
+      }
+
+      const requiredFields = ['title', 'description', 'providerId'];
+      for (const field of requiredFields) {
+        if (!updateData[field]) {
+          throw new BadRequestException(`${field} is required`);
+        }
+      }
+
+      const publication = await this.publicationsService.create({
+        title: updateData.title.toString(),
+        description: updateData.description.toString(),
+        providerId: updateData.providerId.toString(),
+        picture: imagePath || '',
+      });
+
+      return {
+        success: true,
+        data: publication,
+      };
+    } catch (error) {
+      console.error('Error in create:', error);
+      throw error instanceof BadRequestException
+        ? error
+        : new BadRequestException('Failed to create publication');
+    }
   }
 
   @Put(':id')
-  @UseInterceptors(
-    FileInterceptor('image', {
-      storage: diskStorage({
-        destination: './uploads/publications',
-        filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          cb(null, `pub-${uniqueSuffix}${ext}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        const allowedTypes = ['image/jpeg', 'image/png'];
-        if (!allowedTypes.includes(file.mimetype)) {
-          return cb(new BadRequestException('Only JPEG/PNG images are allowed'), false);
-        }
-        cb(null, true);
-      },
-    }),
-  )
-  async updateWithImage(
-    @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: { title: string; description: string; providerId: string },
-  ) {
-    const baseUrl = 'http://192.168.1.38:3000';
-    const updateData = {
-      title: body.title,
-      description: body.description,
-      providerId: body.providerId,
-      ...(file && { picture: `${baseUrl}/uploads/publications/${file.filename}` }),
-    };
+  async updateWithImage(@Param('id') id: string, @Req() request: FastifyRequest) {
+    try {
+      if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        throw new BadRequestException('Invalid publication ID');
+      }
 
-    return this.publicationsService.updatePublication(id, updateData);
+      const existingPublication = await this.publicationsService.findById(id);
+      if (!existingPublication) {
+        throw new NotFoundException('Publication not found');
+      }
+
+      const uploadDir = './uploads/publications';
+      const updateData: Record<string, any> = {};
+      let imagePath: string | undefined;
+
+      const isMultipart = await request.isMultipart();
+      if (!isMultipart) {
+        throw new BadRequestException('Request must be multipart/form-data');
+      }
+
+      const parts = request.parts();
+      for await (const part of parts) {
+        if (part.type === 'file' && part.fieldname === 'image') {
+          if (!part.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+            throw new BadRequestException('Only jpg, jpeg, or png images are allowed');
+          }
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          const filename = `${randomName}${extname(part.filename)}`;
+          const fileDestination = `${uploadDir}/${filename}`;
+          await new Promise<void>((resolve, reject) => {
+            const writeStream = fs.createWriteStream(fileDestination);
+            part.file.pipe(writeStream);
+            writeStream.on('finish', () => resolve());
+            writeStream.on('error', reject);
+          });
+          imagePath = `/uploads/publications/${filename}`;
+
+          // Delete the old image if it exists
+          if (existingPublication.picture && existsSync(`.${existingPublication.picture}`)) {
+            try {
+              fs.unlinkSync(`.${existingPublication.picture}`);
+              console.log(`Deleted old image: ${existingPublication.picture}`);
+            } catch (error) {
+              console.error(`Failed to delete old image: ${existingPublication.picture}`, error);
+            }
+          }
+        } else if (part.type === 'field' && part.fieldname) {
+          updateData[part.fieldname] = part.value;
+        }
+      }
+
+      const requiredFields = ['title', 'description', 'providerId'];
+      for (const field of requiredFields) {
+        if (!updateData[field]) {
+          throw new BadRequestException(`${field} is required`);
+        }
+      }
+
+      const updatePayload = {
+        title: updateData.title.toString(),
+        description: updateData.description.toString(),
+        providerId: updateData.providerId.toString(),
+        picture: imagePath || existingPublication.picture || '',
+      };
+
+      console.log('Updating publication ID:', id);
+      console.log('Update payload:', updatePayload);
+
+      const updatedPublication = await this.publicationsService.updatePublication(id, updatePayload);
+
+      console.log('Updated publication:', updatedPublication);
+
+      return {
+        success: true,
+        data: updatedPublication,
+      };
+    } catch (error) {
+      console.error('Error in updateWithImage:', error);
+      throw error instanceof BadRequestException || error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to update publication');
+    }
   }
 
   @Put(':id/text')
@@ -592,63 +187,46 @@ export class PublicationsController {
     @Param('id') id: string,
     @Body() body: { title: string; description: string; providerId: string },
   ) {
-    const updateData = {
-      title: body.title,
-      description: body.description,
-      providerId: body.providerId,
-    };
+    try {
+      if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        throw new BadRequestException('Invalid publication ID');
+      }
 
-    return this.publicationsService.updatePublication(id, updateData);
+      const existingPublication = await this.publicationsService.findById(id);
+      if (!existingPublication) {
+        throw new NotFoundException('Publication not found');
+      }
+
+      const updateData = {
+        title: body.title,
+        description: body.description,
+        providerId: body.providerId,
+        picture: existingPublication.picture || '',
+      };
+
+      console.log('Updating publication ID (text):', id);
+      console.log('Update payload (text):', updateData);
+
+      const updatedPublication = await this.publicationsService.updatePublication(id, updateData);
+
+      console.log('Updated publication (text):', updatedPublication);
+
+      return {
+        success: true,
+        data: updatedPublication,
+      };
+    } catch (error) {
+      console.error('Error in updateWithoutImage:', error);
+      throw error instanceof BadRequestException || error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to update publication');
+    }
   }
-  // @Post()
-  // create(@Body() body: any): Promise<Publication> {
-  //   return this.publicationsService.create(body);
-  // }
 
   @Get()
   findAll(): Promise<Publication[]> {
     return this.publicationsService.findAll();
   }
-
- 
-  // @Put(':id')
-  // @UseInterceptors(FileInterceptor('image', {
-  //   storage: diskStorage({
-  //     destination: './uploads/publications',
-  //     filename: (req, file, cb) => {
-  //       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-  //       const ext = extname(file.originalname);
-  //       cb(null, `pub-${uniqueSuffix}${ext}`);
-  //     },
-  //   }),
-  // }))
-  // async updateWithImage(
-  //   @Param('id') id: string,
-  //   @UploadedFile() file: Express.Multer.File,
-  //   @Body() body: { title: string; description: string, providerId: string },
-  // ) {
-  //   try {
-  //     const updateData = {
-  //       title: body.title,
-  //       description: body.description,
-  //       providerId: body.providerId,
-  //       ...(file && { picture: `/uploads/publications/${file.filename}` })
-  //     };
-
-  //     const updated = await this.publicationsService.updatePublication(id, updateData);
-      
-  //     return {
-  //       statusCode: 200,
-  //       message: 'Publication mise à jour avec succès',
-  //       data: updated
-  //     };
-  //   } catch (error) {
-  //     console.error('Erreur de mise à jour:', error);
-  //     throw error;
-  //   }
-  // }
-// publications.controller.ts
-
 
   @Delete(':id')
   remove(@Param('id') id: string): Promise<void> {
@@ -666,15 +244,8 @@ export class PublicationsController {
     };
   }
 
-
-
-
-  // Ajouter ces nouvelles routes
   @Post(':id/like')
-  async toggleLike(
-    @Param('id') id: string,
-    @Body() body: { userId: string },
-  ) {
+  async toggleLike(@Param('id') id: string, @Body() body: { userId: string }) {
     return this.publicationsService.toggleLike(id, body.userId);
   }
 
@@ -683,12 +254,7 @@ export class PublicationsController {
     @Param('id') id: string,
     @Body() body: { userId: string; text: string; userName?: string; userImageUrl?: string; userType?: string },
   ) {
-    return this.publicationsService.addComment(
-      id,
-      body.userId,
-      body.text,
-   
-    );
+    return this.publicationsService.addComment(id, body.userId, body.text);
   }
 
   @Put(':publicationId/comments/:commentId')
@@ -699,11 +265,9 @@ export class PublicationsController {
   ) {
     return this.publicationsService.updateComment(publicationId, commentId, updateCommentDto.text);
   }
+
   @Delete(':publicationId/comments/:commentId')
-  async deleteComment(
-    @Param('publicationId') publicationId: string,
-    @Param('commentId') commentId: string,
-  ) {
+  async deleteComment(@Param('publicationId') publicationId: string, @Param('commentId') commentId: string) {
     return this.publicationsService.deleteComment(publicationId, commentId);
   }
 }

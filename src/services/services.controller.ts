@@ -1,14 +1,15 @@
-// src/services/services.controller.ts
-import { Controller, Post, Put, Delete, Body, Param, HttpCode, Get, UseInterceptors, UploadedFile, BadRequestException, Req } from '@nestjs/common';
+import { BadRequestException, Controller, Post, Put, Delete, Param, HttpCode, Get, Req } from '@nestjs/common';
 import { ServicesService } from './services.service';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { FastifyRequest } from 'fastify';
 import { extname } from 'path';
+import * as fs from 'fs'; // Added import for fs
 import { existsSync, mkdirSync } from 'fs';
+import { Multipart } from '@fastify/multipart';
 
 @Controller('services')
 export class ServicesController {
-  constructor(private readonly servicesService: ServicesService) {  // Ensure upload directory exists on startup
+  constructor(private readonly servicesService: ServicesService) {
+    // Ensure upload directory exists on startup
     this.ensureUploadsDirectoryExists();
   }
 
@@ -20,58 +21,62 @@ export class ServicesController {
   }
 
   @Post('create')
-  @UseInterceptors(FileInterceptor('image', {
-    storage: diskStorage({
-      destination: './uploads/services',
-      filename: (req, file, cb) => {
-        try {
-          const randomName = Array(32).fill(null).map(() => 
-            Math.round(Math.random() * 16).toString(16)).join('');
-          cb(null, `${randomName}${extname(file.originalname)}`);
-        } catch (error) {
-          cb(error, 'null');
+  async createService(@Req() request: FastifyRequest) {
+    try {
+      const uploadDir = './uploads/services';
+      const updateData: Record<string, any> = {};
+      const isMultipart = await request.isMultipart();
+      if (!isMultipart) {
+        throw new BadRequestException('Request must be multipart/form-data');
+      }
+      const parts = request.parts();
+      let imagePath: string | undefined;
+      for await (const part of parts) {
+        if (part.type === 'file' && part.fieldname === 'image') {
+          if (!part.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+            throw new BadRequestException('Only jpg, jpeg, png, or gif images are allowed');
+          }
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          const filename = `${randomName}${extname(part.filename)}`;
+          const fileDestination = `${uploadDir}/${filename}`;
+          await new Promise<void>((resolve, reject) => {
+            const writeStream = fs.createWriteStream(fileDestination);
+            part.file.pipe(writeStream);
+            writeStream.on('finish', () => resolve());
+            writeStream.on('error', reject);
+          });
+          imagePath = `/uploads/services/${filename}`;
+        } else if (part.type === 'field' && part.fieldname) {
+          updateData[part.fieldname] = part.value;
         }
       }
-    }),
-    limits: {
-      fileSize: 5 * 1024 * 1024, // 5MB limit
-    }
-  }))
-  async createService(
-    @UploadedFile() image: Express.Multer.File,
-    @Body() body: Record<string, any>
-  ) {
-    try {
-      if (!image) {
-        throw new BadRequestException('Image is required');
-      }
-
-      // Validate required fields
       const requiredFields = ['title', 'description', 'price', 'estimatedDuration', 'prestataireId'];
       for (const field of requiredFields) {
-        if (!body[field]) {
+        if (!updateData[field]) {
           throw new BadRequestException(`${field} is required`);
         }
       }
-
-      // Parse numeric fields
-      const price = parseFloat(body.price);
+      const price = parseFloat(updateData.price);
       if (isNaN(price)) {
         throw new BadRequestException('Price must be a valid number');
       }
-
+      if (!imagePath) {
+        throw new BadRequestException('Image is required');
+      }
       const result = await this.servicesService.createService(
-        body.title.toString(),
-        body.description.toString(),
+        updateData.title.toString(),
+        updateData.description.toString(),
         price,
-        body.estimatedDuration.toString(),
-        `/uploads/services/${image.filename}`,
-        body.prestataireId.toString()
+        updateData.estimatedDuration.toString(),
+        imagePath,
+        updateData.prestataireId.toString(),
       );
-
       return {
         success: true,
-        data: result
+        data: result,
       };
     } catch (error) {
       console.error('Error in createService:', error);
@@ -79,93 +84,75 @@ export class ServicesController {
     }
   }
 
-// Add this to your existing controller
-// @Post('create')
-// @UseInterceptors(FileInterceptor('image', {
-//   storage: diskStorage({
-//     destination: './uploads/services',
-//     filename: (req, file, cb) => {
-//       const randomName = Array(32).fill(null).map(() => 
-//         Math.round(Math.random() * 16).toString(16)).join('');
-//       return cb(null, `${randomName}${extname(file.originalname)}`);
-//     }
-//   })
-// }))
-// async createService(
-//   @UploadedFile() image: Express.Multer.File,
-//   @Body() body: {
-//     title: string;
-//     description: string;
-//     price: number;
-//     estimatedDuration: number;
-//     prestataireId: string;
-//   }
-// ) {
-//   if (!image) {
-//     throw new BadRequestException('Image is required');
-//   }
+  @Put('updateService/:id')
+  async updateService(@Param('id') id: string, @Req() request: FastifyRequest) {
+    try {
+      const uploadDir = './uploads/services';
+      const updateData: Record<string, any> = {};
 
-//   const imageUrl = `/uploads/services/${image.filename}`;
-  
-//   return this.servicesService.addService(
-//     body.title,
-//     body.description,
-//     body.price,
-//     body.estimatedDuration,
-//     imageUrl,
-//     body.prestataireId,
-//   );
-// }
+      // Check if the request contains multipart data
+      const isMultipart = await request.isMultipart();
+      if (!isMultipart) {
+        throw new BadRequestException('Request must be multipart/form-data');
+      }
 
+      // Collect form fields and files
+      const parts = request.parts();
+      let imagePath: string | undefined;
+      for await (const part of parts) {
+        if (part.type === 'file' && part.fieldname === 'image') {
+          // Validate file type
+          if (!part.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+            throw new BadRequestException('Only jpg, jpeg, png, or gif images are allowed');
+          }
 
+          // Generate a unique filename
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          const filename = `${randomName}${extname(part.filename)}`;
+          const fileDestination = `${uploadDir}/${filename}`;
 
-@Put('updateService/:id')
-  @UseInterceptors(FileInterceptor('image', {
-    storage: diskStorage({
-      destination: './uploads/services',
-      filename: (req, file, cb) => {
-        try {
-          const randomName = Array(32).fill(null).map(() => 
-            Math.round(Math.random() * 16).toString(16)).join('');
-          cb(null, `${randomName}${extname(file.originalname)}`);
-        } catch (error) {
-          cb(error, 'null');
+          // Save the file to disk
+          await new Promise<void>((resolve, reject) => {
+            const writeStream = fs.createWriteStream(fileDestination);
+            part.file.pipe(writeStream);
+            writeStream.on('finish', () => resolve());
+            writeStream.on('error', reject);
+          });
+
+          imagePath = `/uploads/services/${filename}`;
+        } else if (part.type === 'field' && part.fieldname) {
+          updateData[part.fieldname] = part.value;
         }
       }
-    }),
-    limits: {
-      fileSize: 5 * 1024 * 1024, // 5MB limit
-    }
-  }))
-  async updateService(
-    @Param('id') id: string,
-    @UploadedFile() image: Express.Multer.File,
-    @Body() body: Record<string, any>
-  ) {
-    try {
+
+      // Validate required fields
       const requiredFields = ['title', 'description', 'price', 'estimatedDuration', 'prestataireId'];
       for (const field of requiredFields) {
-        if (!body[field]) {
+        if (!updateData[field]) {
           throw new BadRequestException(`${field} is required`);
         }
       }
 
-      const price = parseFloat(body.price);
+      // Parse numeric fields
+      const price = parseFloat(updateData.price);
       if (isNaN(price)) {
         throw new BadRequestException('Price must be a valid number');
       }
 
-      // If an image is provided, use its path; otherwise, keep the existing photo
-      const photo = image ? `/uploads/services/${image.filename}` : body.photo;
+      // Use new image if provided, otherwise keep existing photo
+      const photo = imagePath || updateData.photo;
 
       const service = await this.servicesService.updateService(
         id,
-        body.title.toString(),
-        body.description.toString(),
+        updateData.title.toString(),
+        updateData.description.toString(),
         price,
-        body.estimatedDuration.toString(),
+        updateData.estimatedDuration.toString(),
         photo,
-        body.prestataireId.toString()
+        updateData.prestataireId.toString(),
       );
 
       return {
@@ -199,4 +186,4 @@ export class ServicesController {
       data: services,
     };
   }
-}
+} 

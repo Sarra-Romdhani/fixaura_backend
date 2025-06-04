@@ -20,7 +20,8 @@ export class Publication extends Document {
   @Prop({ required: true })
   description: string;
 
-  @Prop({ default: '' })
+  //@Prop({ default: '' })
+  @Prop({ type: String, default: '' }) // Ensure picture is a string and optional
   picture: string;
 
   @Prop({ required: true })

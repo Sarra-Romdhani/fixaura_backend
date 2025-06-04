@@ -223,12 +223,12 @@ export class AuthService {
       });
   
       await this.transporter.sendMail({
-        from: `"TIKTAK" <${this.configService.get<string>('EMAIL_USER')}>`,
+        from: `"Fixaura" <${this.configService.get<string>('EMAIL_USER')}>`,
         to: email,
-        subject: 'TIKTAK Password Reset Code',
+        subject: 'Fixaura Password Reset Code',
         text: `Votre code de vérification est : ${code}\n\nCe code expire dans 10 minutes.`,
         html: `
-          <h2>TIKTAK Password Reset</h2>
+          <h2>Fixaura Password Reset</h2>
           <p>Votre code de vérification est : <strong>${code}</strong></p>
           <p>Ce code expire dans 10 minutes.</p>
           <p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>

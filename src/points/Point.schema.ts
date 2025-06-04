@@ -15,6 +15,5 @@ export class Points extends Document {
 }
 
 export const PointsSchema = SchemaFactory.createForClass(Points);
-
 // Optional: Add unique index
 PointsSchema.index({ userId: 1, prestataireId: 1 }, { unique: true });

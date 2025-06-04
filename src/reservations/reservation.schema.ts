@@ -1,9 +1,11 @@
-// reservation.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+
 export type ReservationDocument = Reservation & Document;
+
 @Schema()
 export class Reservation extends Document {
+  
   @Prop({ required: true, ref: 'Client' })
   id_client: string;
 
@@ -16,10 +18,10 @@ export class Reservation extends Document {
   @Prop({ required: true })
   location: string;
 
-  @Prop({ 
-    required: true, 
-    enum: ['pending', 'confirmed', 'cancelled', 'completed', 'waiting'],
-    default: 'pending'
+  @Prop({
+    required: true,
+    enum: ['pending', 'confirmed', 'canceled', 'completed', 'waiting'],
+    default: 'pending',
   })
   status: string;
 
@@ -33,11 +35,13 @@ export class Reservation extends Document {
   request?: string;
 
   @Prop({ type: String })
-  qrCode?: string; // Ensure this is present
+  qrCode?: string;
+
   @Prop({ default: false })
-  isRated: boolean; // New field to track if reservation is rated
+  isRated: boolean;
 
-
+  @Prop({ default: false })
+  discountApplied: boolean;
 }
 
 export const ReservationSchema = SchemaFactory.createForClass(Reservation);

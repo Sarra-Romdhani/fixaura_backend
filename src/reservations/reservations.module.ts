@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ReservationsService } from './reservations.service';
 import { ReservationsController } from './reservations.controller';
@@ -8,6 +8,7 @@ import { PrestatairesModule } from 'src/prestataires/prestataires.module';
 import { ClientsModule } from 'src/clients/clients.module';
 import { PointsModule } from 'src/points/points.module';
 import { LocationsModule } from 'src/locations/locations.module';
+import { FacturesModule } from 'src/factures/factures.module';
 
 @Module({
   imports: [
@@ -17,6 +18,8 @@ import { LocationsModule } from 'src/locations/locations.module';
     ClientsModule, // Add this to provide ClientModel
     PrestatairesModule,
     LocationsModule, // Add this line
+    forwardRef(() => FacturesModule), // For FacturesService
+
 
   ],
   providers: [ReservationsService],
