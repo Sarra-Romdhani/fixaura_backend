@@ -10,7 +10,7 @@ export class Auth extends Document {
   password: string;
 
   @Prop()
-  name: string; // Optionnel
+  name: string; 
 }
 
 export const AuthSchema = SchemaFactory.createForClass(Auth);

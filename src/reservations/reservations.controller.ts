@@ -128,20 +128,24 @@ async getReservationById(@Param('id') id: string) {
   //   return { success: true, message: 'Réservation supprimée avec succès' };
   // }
 @Delete(':id')
-  async deleteReservation(@Param('id') id: string) {
-    this.logger.log(`[DEBUG] Received DELETE request for reservation ${id}`);
-    if (!isValidObjectId(id)) {
-      this.logger.error(`[DEBUG] Invalid reservation ID: ${id}`);
-      throw new BadRequestException('Invalid reservation ID');
-    }
-    try {
-      const result = await this.reservationsService.deleteReservation(id);
-      return result;
-    } catch (error) {
-      this.logger.error(`[DEBUG] Error deleting reservation ${id}: ${error.message}`);
-      throw error instanceof HttpException ? error : new HttpException(error.message, 500);
-    }
+async deleteReservation(@Param('id') id: string) {
+  this.logger.log(`[DEBUG] Received DELETE request for reservation ${id}`);
+  if (!isValidObjectId(id)) {
+    this.logger.error(`[DEBUG] Invalid reservation ID: ${id}`);
+    throw new BadRequestException('Invalid reservation ID');
   }
+  
+  try {
+    // Modifiez pour ne pas s'attendre à un corps JSON
+    const result = await this.reservationsService.deleteReservation(id);
+    return result;
+  } catch (error) {
+    this.logger.error(`[DEBUG] Error deleting reservation ${id}: ${error.message}`);
+    throw error instanceof HttpException 
+      ? error 
+      : new HttpException(error.message, 500);
+  }
+}
 
   @Put(':id/cancel')
   async cancelReservation(@Param('id') id: string) {
@@ -204,16 +208,22 @@ async getReservationById(@Param('id') id: string) {
   //     );
   //   }
   // }
-
-  @Get('points/:userId')
-  async getPointsForUser(@Param('userId') userId: string) {
-    try {
-      const points = await this.reservationsService.getPointsForUser(userId);
-      return { success: true, data: points };
-    } catch (error) {
-      throw new HttpException({ success: false, message: error.message }, error.status || 500);
-    }
-  }
+@Get('points/:userId/:prestataireId')
+async getUserPointsForPrestataire(
+  @Param('userId') userId: string,
+  @Param('prestataireId') prestataireId: string
+): Promise<number> {
+  return this.reservationsService.getUserPointsForPrestataire(userId, prestataireId);
+}
+  // @Get('points/:userId')
+  // async getPointsForUser(@Param('userId') userId: string) {
+  //   try {
+  //     const points = await this.reservationsService.getPointsForUser(userId);
+  //     return { success: true, data: points };
+  //   } catch (error) {
+  //     throw new HttpException({ success: false, message: error.message }, error.status || 500);
+  //   }
+  // }
 
   @Get('verify/:id')
   async verifyReservation(@Param('id') id: string) {

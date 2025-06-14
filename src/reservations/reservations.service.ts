@@ -1471,6 +1471,18 @@ export class ReservationsService {
     return this.reservationModel.find(query).exec();
   }
 
+  private async getUserEmail(userId: string): Promise<string | null> {
+    const client = await this.clientModel.findById(userId).exec();
+    if (client?.email) {
+      return client.email;
+    }
+    const prestataire = await this.prestataireModel.findById(userId).exec();
+    if (prestataire?.email) {
+      return prestataire.email;
+    }
+    return null;
+  }
+
   async deleteReservation(id: string): Promise<{ success: boolean; message: string; data?: any }> {
     this.logger.log(`[DEBUG] Deleting reservation ${id}`);
     if (!isValidObjectId(id)) {
@@ -1486,18 +1498,58 @@ export class ReservationsService {
 
     this.logger.log(`[DEBUG] Reservation found: ${JSON.stringify(reservation.toObject())}`);
 
-    let emailSent = false;
-    const userEmail = await this.getUserEmail(reservation.id_client.toString());
-    if (userEmail) {
-      this.logger.log(`[DEBUG] Sending rejection email to ${userEmail}`);
-      emailSent = await this.sendEmail(userEmail, 'Réservation Refusée', 'Votre réservation a été refusée.');
-      if (emailSent) {
-        this.logger.log(`[DEBUG] Rejection email sent successfully to ${userEmail}`);
+    // Récupérer l'email du client
+    let clientEmailSent = false;
+    const clientEmail = await this.getUserEmail(reservation.id_client.toString());
+    if (clientEmail) {
+      this.logger.log(`[DEBUG] Sending rejection email to client ${clientEmail}`);
+      clientEmailSent = await this.sendEmail(
+        clientEmail,
+        'Réservation Refusée - Fixaura',
+        `
+Bonjour,
+Votre réservation prévue pour le ${new Date(reservation.date).toLocaleString()} a été refusée.
+Service: ${reservation.service || 'N/A'}
+Lieu: ${reservation.location || 'N/A'}
+Pour toute question, contactez-nous à support@fixaura.com.
+Merci de faire confiance à Fixaura,
+L'équipe Fixaura
+        `
+      );
+      if (clientEmailSent) {
+        this.logger.log(`[DEBUG] Rejection email sent successfully to client ${clientEmail}`);
       } else {
-        this.logger.warn(`[DEBUG] Rejection email failed for ${userEmail}`);
+        this.logger.warn(`[DEBUG] Rejection email failed for client ${clientEmail}`);
       }
     } else {
       this.logger.warn(`[DEBUG] No email found for client ${reservation.id_client}`);
+    }
+
+    // Récupérer l'email du prestataire pour confirmation interne
+    let prestataireEmailSent = false;
+    const prestataireEmail = await this.getUserEmail(reservation.id_prestataire.toString());
+    if (prestataireEmail) {
+      this.logger.log(`[DEBUG] Sending internal rejection notification to prestataire ${prestataireEmail}`);
+      prestataireEmailSent = await this.sendEmail(
+        prestataireEmail,
+        'Confirmation de Refus de Réservation - Fixaura',
+        `
+Bonjour,
+Vous avez refusé la réservation avec l'ID ${id} prévue pour le ${new Date(reservation.date).toLocaleString()}.
+Client: ${reservation.id_client}
+Service: ${reservation.service || 'N/A'}
+Lieu: ${reservation.location || 'N/A'}
+Merci de faire confiance à Fixaura,
+L'équipe Fixaura
+        `
+      );
+      if (prestataireEmailSent) {
+        this.logger.log(`[DEBUG] Internal rejection notification sent successfully to prestataire ${prestataireEmail}`);
+      } else {
+        this.logger.warn(`[DEBUG] Internal rejection notification failed for prestataire ${prestataireEmail}`);
+      }
+    } else {
+      this.logger.warn(`[DEBUG] No email found for prestataire ${reservation.id_prestataire}`);
     }
 
     const wasConfirmed = reservation.status === 'confirmed';
@@ -1523,21 +1575,11 @@ export class ReservationsService {
     return {
       success: true,
       message: 'Réservation supprimée avec succès',
-      data: { emailSent, reservationId: id },
+      data: { clientEmailSent, prestataireEmailSent, reservationId: id },
     };
   }
-  private async getUserEmail(userId: string): Promise<string | null> {
-    const client = await this.clientModel.findById(userId).exec();
-    if (client?.email) {
-      return client.email;
-    }
-    const prestataire = await this.prestataireModel.findById(userId).exec();
-    if (prestataire?.email) {
-      return prestataire.email;
-    }
-    return null;
-  }
-  async updateReservation(id: string, updateData: Partial<Reservation>): Promise<Reservation> {
+  
+async updateReservation(id: string, updateData: Partial<Reservation>): Promise<Reservation> {
     this.logger.log(`[DEBUG] Updating reservation ${id} with data: ${JSON.stringify(updateData)}`);
     try {
       if (!isValidObjectId(id)) {
@@ -1554,6 +1596,7 @@ export class ReservationsService {
       if (updateData.status === 'confirmed') {
         this.logger.log(`[DEBUG] Confirming reservation ${id}`);
         try {
+          // Générer le QR code
           this.logger.log(`[DEBUG] Generating QR code for reservation ${id}`);
           let qrCodeDataUrl;
           try {
@@ -1565,6 +1608,7 @@ export class ReservationsService {
             throw new InternalServerErrorException(`Failed to generate QR code: ${qrError.message}`);
           }
 
+          // Envoyer un message de confirmation au client
           this.logger.log(`[DEBUG] Sending confirmation message for reservation ${id}`);
           try {
             await this.messagesService.saveMessage(
@@ -1578,22 +1622,59 @@ export class ReservationsService {
             throw new InternalServerErrorException(`Failed to send confirmation message: ${msgError.message}`);
           }
 
-          this.logger.log(`[DEBUG] Fetching email for client ${reservation.id_client}`);
-          const userEmail = await this.getUserEmail(reservation.id_client.toString());
-          if (userEmail) {
-            this.logger.log(`[DEBUG] Attempting to send acceptance email to ${userEmail}`);
-            const emailSent = await this.sendEmail(
-              userEmail,
-              'Réservation Acceptée',
-              'Votre réservation a été confirmée avec succès.'
+          // Envoyer un email de confirmation au client
+          const clientEmail = await this.getUserEmail(reservation.id_client.toString());
+          let clientEmailSent = false;
+          if (clientEmail) {
+            this.logger.log(`[DEBUG] Attempting to send acceptance email to client ${clientEmail}`);
+            clientEmailSent = await this.sendEmail(
+              clientEmail,
+              'Réservation Acceptée - Fixaura',
+              `
+Bonjour,
+Votre réservation prévue pour le ${new Date(reservation.date).toLocaleString()} a été confirmée avec succès.
+Service: ${reservation.service || 'N/A'}
+Lieu: ${reservation.location || 'N/A'}
+Votre QR code: ${qrCodeDataUrl}
+Pour toute question, contactez-nous à support@fixaura.com.
+Merci de faire confiance à Fixaura,
+L'équipe Fixaura
+              `
             );
-            if (emailSent) {
-              this.logger.log(`[DEBUG] Acceptance email sent successfully to ${userEmail}`);
+            if (clientEmailSent) {
+              this.logger.log(`[DEBUG] Acceptance email sent successfully to client ${clientEmail}`);
             } else {
-              this.logger.warn(`[DEBUG] Acceptance email failed for ${userEmail}`);
+              this.logger.warn(`[DEBUG] Acceptance email failed for client ${clientEmail}`);
             }
           } else {
             this.logger.warn(`[DEBUG] No email found for client ${reservation.id_client}`);
+          }
+
+          // Envoyer une notification interne au prestataire
+          const prestataireEmail = await this.getUserEmail(reservation.id_prestataire.toString());
+          let prestataireEmailSent = false;
+          if (prestataireEmail) {
+            this.logger.log(`[DEBUG] Attempting to send internal confirmation email to prestataire ${prestataireEmail}`);
+            prestataireEmailSent = await this.sendEmail(
+              prestataireEmail,
+              'Confirmation de Réservation Acceptée - Fixaura',
+              `
+Bonjour,
+Vous avez confirmé la réservation avec l'ID ${id} prévue pour le ${new Date(reservation.date).toLocaleString()}.
+Client: ${reservation.id_client}
+Service: ${reservation.service || 'N/A'}
+Lieu: ${reservation.location || 'N/A'}
+Merci de faire confiance à Fixaura,
+L'équipe Fixaura
+              `
+            );
+            if (prestataireEmailSent) {
+              this.logger.log(`[DEBUG] Internal confirmation email sent successfully to prestataire ${prestataireEmail}`);
+            } else {
+              this.logger.warn(`[DEBUG] Internal confirmation email failed for prestataire ${prestataireEmail}`);
+            }
+          } else {
+            this.logger.warn(`[DEBUG] No email found for prestataire ${reservation.id_prestataire}`);
           }
         } catch (error) {
           this.logger.error(`[DEBUG] Confirmation process failed: ${error.message}`);
@@ -1617,7 +1698,6 @@ export class ReservationsService {
       throw error instanceof HttpException ? error : new InternalServerErrorException(`Error updating reservation: ${error.message}`);
     }
   }
-
   async cancelReservation(id: string): Promise<{
     canceledReservation: Reservation;
     matchingReservation?: Reservation;
@@ -1701,61 +1781,165 @@ export class ReservationsService {
     };
   }
 
-  async verifyAndCompleteReservation(id: string): Promise<Reservation> {
-    this.logger.log(`Verifying and completing reservation: ${id}`);
-    if (!isValidObjectId(id)) {
-      this.logger.error(`Invalid reservation ID: ${id}`);
-      throw new BadRequestException('Invalid reservation ID');
-    }
+  // async verifyAndCompleteReservation(id: string): Promise<Reservation> {
+  //   this.logger.log(`Verifying and completing reservation: ${id}`);
+  //   if (!isValidObjectId(id)) {
+  //     this.logger.error(`Invalid reservation ID: ${id}`);
+  //     throw new BadRequestException('Invalid reservation ID');
+  //   }
 
-    const reservation = await this.reservationModel.findById(id).exec();
-    if (!reservation) {
-      this.logger.error(`Reservation with ID ${id} not found`);
-      throw new NotFoundException(`Reservation with ID ${id} not found`);
-    }
+  //   const reservation = await this.reservationModel.findById(id).exec();
+  //   if (!reservation) {
+  //     this.logger.error(`Reservation with ID ${id} not found`);
+  //     throw new NotFoundException(`Reservation with ID ${id} not found`);
+  //   }
 
-    const updatedPrice = reservation.price || 0;
-    const discountApplied = false;
+  //   const updatedPrice = reservation.price || 0;
+  //   const discountApplied = false;
 
-    this.logger.log(`Updating reservation ${id} with price: ${updatedPrice}, discount: ${discountApplied}`);
+  //   this.logger.log(`Updating reservation ${id} with price: ${updatedPrice}, discount: ${discountApplied}`);
 
-    try {
-      const updatedReservation = await this.reservationModel
-        .findByIdAndUpdate(
-          id,
-          { status: 'completed', price: updatedPrice, discountApplied },
-          { new: true }
-        )
-        .exec();
+  //   try {
+  //     const updatedReservation = await this.reservationModel
+  //       .findByIdAndUpdate(
+  //         id,
+  //         { status: 'completed', price: updatedPrice, discountApplied },
+  //         { new: true }
+  //       )
+  //       .exec();
 
-      if (!updatedReservation) {
-        this.logger.error(`Failed to update reservation ${id}`);
-        throw new NotFoundException(`Failed to update reservation with ID ${id}`);
-      }
+  //     if (!updatedReservation) {
+  //       this.logger.error(`Failed to update reservation ${id}`);
+  //       throw new NotFoundException(`Failed to update reservation with ID ${id}`);
+  //     }
 
-      const factureData: Partial<Facture> = {
-        reservationId: new Types.ObjectId(id),
-        prestataireId: new Types.ObjectId(reservation.id_prestataire),
-        clientId: new Types.ObjectId(reservation.id_client),
-        service: reservation.service,
-        date: reservation.date,
-        location: reservation.location,
-        price: updatedPrice,
-        discountApplied,
-        request: reservation.request,
-        pdfPath: undefined,
-      };
+  //     const factureData: Partial<Facture> = {
+  //       reservationId: new Types.ObjectId(id),
+  //       prestataireId: new Types.ObjectId(reservation.id_prestataire),
+  //       clientId: new Types.ObjectId(reservation.id_client),
+  //       service: reservation.service,
+  //       date: reservation.date,
+  //       location: reservation.location,
+  //       price: updatedPrice,
+  //       discountApplied,
+  //       request: reservation.request,
+  //       pdfPath: undefined,
+  //     };
 
-      this.logger.log(`Creating facture for reservation ${id} with data: ${JSON.stringify(factureData)}`);
-      const createdFacture = await this.facturesService.createFacture(factureData);
-      this.logger.log(`Facture created for reservation ${id}: ${createdFacture._id}`);
+  //     this.logger.log(`Creating facture for reservation ${id} with data: ${JSON.stringify(factureData)}`);
+  //     const createdFacture = await this.facturesService.createFacture(factureData);
+  //     this.logger.log(`Facture created for reservation ${id}: ${createdFacture._id}`);
 
-      return updatedReservation;
-    } catch (error) {
-      this.logger.error(`Error completing reservation ${id}: ${error.message}`);
-      throw new InternalServerErrorException('Error completing reservation: ' + error.message);
-    }
+  //     return updatedReservation;
+  //   } catch (error) {
+  //     this.logger.error(`Error completing reservation ${id}: ${error.message}`);
+  //     throw new InternalServerErrorException('Error completing reservation: ' + error.message);
+  //   }
+  // }
+  //   async getPointsForUser(userId: string): Promise<Points[]> {
+  //   return this.pointsModel.find({ userId }).populate('prestataireId').exec();
+  // }
+
+  // In ReservationsService
+async verifyAndCompleteReservation(id: string): Promise<Reservation> {
+  this.logger.log(`Verifying and completing reservation: ${id}`);
+  if (!isValidObjectId(id)) {
+    this.logger.error(`Invalid reservation ID: ${id}`);
+    throw new BadRequestException('Invalid reservation ID');
   }
+
+  const reservation = await this.reservationModel.findById(id).exec();
+  if (!reservation) {
+    this.logger.error(`Reservation with ID ${id} not found`);
+    throw new NotFoundException(`Reservation with ID ${id} not found`);
+  }
+
+  // Get points for the client for this prestataire
+  const points = await this.getUserPointsForPrestataire(reservation.id_client, reservation.id_prestataire);
+  let updatedPrice = reservation.price || 0;
+  let discountApplied = false;
+  let discountAmount = 0;
+
+  // Check if points is a multiple of 5
+  if (points > 0 && points % 5 === 0) {
+    // Apply 15% discount
+    discountAmount = updatedPrice * 0.15;
+    updatedPrice = updatedPrice * 0.85; // 15% off
+    discountApplied = true;
+    // Reset points to 0
+    await this.pointsModel.updateOne(
+      { userId: reservation.id_client, prestataireId: reservation.id_prestataire },
+      { $set: { points: 0 } }
+    ).exec();
+    this.logger.log(`Applied 15% discount for reservation ${id}, reset points to 0`);
+  } else {
+    // Increment points by 1
+    await this.pointsModel.updateOne(
+      { userId: reservation.id_client, prestataireId: reservation.id_prestataire },
+      { $inc: { points: 1 } },
+      { upsert: true } // Create new points document if it doesn't exist
+    ).exec();
+    this.logger.log(`Incremented points to ${points + 1} for user ${reservation.id_client} with prestataire ${reservation.id_prestataire}`);
+  }
+
+  this.logger.log(`Updating reservation ${id} with price: ${updatedPrice}, discountApplied: ${discountApplied}, discountAmount: ${discountAmount}`);
+
+  try {
+    const updatedReservation = await this.reservationModel
+      .findByIdAndUpdate(
+        id,
+        { 
+          status: 'completed', 
+          price: updatedPrice, 
+          discountApplied, 
+          discountAmount 
+        },
+        { new: true }
+      )
+      .exec();
+
+    if (!updatedReservation) {
+      this.logger.error(`Failed to update reservation ${id}`);
+      throw new NotFoundException(`Failed to update reservation with ID ${id}`);
+    }
+
+    const factureData: Partial<Facture> = {
+      reservationId: new Types.ObjectId(id),
+      prestataireId: new Types.ObjectId(reservation.id_prestataire),
+      clientId: new Types.ObjectId(reservation.id_client),
+      service: reservation.service,
+      date: reservation.date,
+      location: reservation.location,
+      price: updatedPrice,
+      discountApplied,
+      discountAmount,
+      request: reservation.request,
+      pdfPath: undefined,
+    };
+
+    this.logger.log(`Creating facture for reservation ${id} with data: ${JSON.stringify(factureData)}`);
+    const createdFacture = await this.facturesService.createFacture(factureData);
+    this.logger.log(`Facture created for reservation ${id}: ${createdFacture._id}`);
+
+    return updatedReservation;
+  } catch (error) {
+    this.logger.error(`Error completing reservation ${id}: ${error.message}`);
+    throw new InternalServerErrorException('Error completing reservation: ' + error.message);
+  }
+}
+
+async getUserPointsForPrestataire(userId: string, prestataireId: string): Promise<number> {
+  if (!isValidObjectId(userId) || !isValidObjectId(prestataireId)) {
+    this.logger.error(`Invalid userId: ${userId} or prestataireId: ${prestataireId}`);
+    throw new BadRequestException('Invalid user or prestataire ID');
+  }
+
+  const pointsDoc = await this.pointsModel
+    .findOne({ userId, prestataireId })
+    .exec();
+
+  return pointsDoc ? pointsDoc.points : 0;
+}
 
   async promoteFirstWaitingReservation(prestataireId: string, date: Date): Promise<void> {
     this.logger.log(`[DEBUG] Promoting first waiting reservation for prestataire ${prestataireId} around date ${date}`);
@@ -1972,9 +2156,7 @@ export class ReservationsService {
     };
   }
 
-  async getPointsForUser(userId: string): Promise<Points[]> {
-    return this.pointsModel.find({ userId }).populate('prestataireId').exec();
-  }
+
 
   async sendLocationCard(
     reservationId: string,

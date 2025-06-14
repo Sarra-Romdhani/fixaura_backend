@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Body, Query, Put } from '@nestjs/common';
 import { MessagesService } from './messages.service';
-
+import {  UserSearchResult } from './messages.service'; // Import UserSearchResult
 @Controller('messages')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
@@ -43,5 +43,14 @@ export class MessagesController {
   ) {
     await this.messagesService.markMessagesAsReadByIds(messageIds, readerId);
     return { success: true };
+  }
+
+@Get('users/search')
+  async searchUsers(
+    @Query('query') query: string,
+    @Query('userId') userId: string,
+  ): Promise<{ success: boolean; data: UserSearchResult[] }> {
+    const users = await this.messagesService.searchUsers(query, userId);
+    return { success: true, data: users };
   }
 }

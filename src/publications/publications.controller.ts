@@ -15,7 +15,7 @@ import {
 import { PublicationsService } from './publications.service';
 import { Publication } from './publication.schema';
 import { extname } from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import { FastifyRequest } from 'fastify';
 import { existsSync, mkdirSync } from 'fs';
 
@@ -37,7 +37,7 @@ export class PublicationsController {
     try {
       const uploadDir = './uploads/publications';
       const updateData: Record<string, any> = {};
-      let imagePath: string | undefined;
+      const imagePaths: string[] = [];
 
       const isMultipart = await request.isMultipart();
       if (!isMultipart) {
@@ -46,7 +46,7 @@ export class PublicationsController {
 
       const parts = request.parts();
       for await (const part of parts) {
-        if (part.type === 'file' && part.fieldname === 'image') {
+        if (part.type === 'file' && part.fieldname === 'images') {
           if (!part.mimetype.match(/\/(jpg|jpeg|png)$/)) {
             throw new BadRequestException('Only jpg, jpeg, or png images are allowed');
           }
@@ -56,13 +56,8 @@ export class PublicationsController {
             .join('');
           const filename = `${randomName}${extname(part.filename)}`;
           const fileDestination = `${uploadDir}/${filename}`;
-          await new Promise<void>((resolve, reject) => {
-            const writeStream = fs.createWriteStream(fileDestination);
-            part.file.pipe(writeStream);
-            writeStream.on('finish', () => resolve());
-            writeStream.on('error', reject);
-          });
-          imagePath = `/uploads/publications/${filename}`;
+          await fs.writeFile(fileDestination, part.file);
+          imagePaths.push(`/uploads/publications/${filename}`);
         } else if (part.type === 'field' && part.fieldname) {
           updateData[part.fieldname] = part.value;
         }
@@ -75,11 +70,15 @@ export class PublicationsController {
         }
       }
 
+      if (imagePaths.length > 10) {
+        throw new BadRequestException('Cannot upload more than 10 images');
+      }
+
       const publication = await this.publicationsService.create({
         title: updateData.title.toString(),
         description: updateData.description.toString(),
         providerId: updateData.providerId.toString(),
-        picture: imagePath || '',
+        pictures: imagePaths,
       });
 
       return {
@@ -108,7 +107,8 @@ export class PublicationsController {
 
       const uploadDir = './uploads/publications';
       const updateData: Record<string, any> = {};
-      let imagePath: string | undefined;
+      const newImagePaths: string[] = [];
+      let existingImages: string[] = [];
 
       const isMultipart = await request.isMultipart();
       if (!isMultipart) {
@@ -117,7 +117,7 @@ export class PublicationsController {
 
       const parts = request.parts();
       for await (const part of parts) {
-        if (part.type === 'file' && part.fieldname === 'image') {
+        if (part.type === 'file' && part.fieldname === 'images') {
           if (!part.mimetype.match(/\/(jpg|jpeg|png)$/)) {
             throw new BadRequestException('Only jpg, jpeg, or png images are allowed');
           }
@@ -127,25 +127,24 @@ export class PublicationsController {
             .join('');
           const filename = `${randomName}${extname(part.filename)}`;
           const fileDestination = `${uploadDir}/${filename}`;
-          await new Promise<void>((resolve, reject) => {
-            const writeStream = fs.createWriteStream(fileDestination);
-            part.file.pipe(writeStream);
-            writeStream.on('finish', () => resolve());
-            writeStream.on('error', reject);
-          });
-          imagePath = `/uploads/publications/${filename}`;
-
-          // Delete the old image if it exists
-          if (existingPublication.picture && existsSync(`.${existingPublication.picture}`)) {
-            try {
-              fs.unlinkSync(`.${existingPublication.picture}`);
-              console.log(`Deleted old image: ${existingPublication.picture}`);
-            } catch (error) {
-              console.error(`Failed to delete old image: ${existingPublication.picture}`, error);
-            }
-          }
+          await fs.writeFile(fileDestination, part.file);
+          newImagePaths.push(`/uploads/publications/${filename}`);
         } else if (part.type === 'field' && part.fieldname) {
           updateData[part.fieldname] = part.value;
+        }
+      }
+
+      if (updateData.existingImages) {
+        try {
+          existingImages = JSON.parse(updateData.existingImages);
+          if (!Array.isArray(existingImages)) {
+            throw new BadRequestException('existingImages must be an array');
+          }
+          existingImages = existingImages.filter((path: string) =>
+            existingPublication.pictures?.includes(path),
+          );
+        } catch (e) {
+          throw new BadRequestException('Invalid existingImages format');
         }
       }
 
@@ -156,19 +155,38 @@ export class PublicationsController {
         }
       }
 
+      if (existingPublication.pictures && existingPublication.pictures.length > 0) {
+        const imagesToDelete = existingPublication.pictures.filter(
+          (oldPath) => !existingImages.includes(oldPath),
+        );
+        for (const imagePath of imagesToDelete) {
+          const filePath = `.${imagePath}`;
+          if (existsSync(filePath)) {
+            try {
+              await fs.unlink(filePath);
+              console.log(`Deleted image: ${imagePath}`);
+            } catch (error) {
+              console.error(`Failed to delete image: ${imagePath}`, error);
+            }
+          }
+        }
+      }
+
+      const finalPictures = [...existingImages, ...newImagePaths];
+
+      if (finalPictures.length > 10) {
+        throw new BadRequestException('Total images cannot exceed 10');
+      }
+
       const updatePayload = {
         title: updateData.title.toString(),
         description: updateData.description.toString(),
         providerId: updateData.providerId.toString(),
-        picture: imagePath || existingPublication.picture || '',
+        pictures: finalPictures,
+        updatedAt: new Date(),
       };
 
-      console.log('Updating publication ID:', id);
-      console.log('Update payload:', updatePayload);
-
       const updatedPublication = await this.publicationsService.updatePublication(id, updatePayload);
-
-      console.log('Updated publication:', updatedPublication);
 
       return {
         success: true,
@@ -185,11 +203,15 @@ export class PublicationsController {
   @Put(':id/text')
   async updateWithoutImage(
     @Param('id') id: string,
-    @Body() body: { title: string; description: string; providerId: string },
+    @Body() body: { title: string; description: string; providerId: string; pictures?: string[] },
   ) {
     try {
       if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
         throw new BadRequestException('Invalid publication ID');
+      }
+
+      if (!body || Object.keys(body).length === 0) {
+        throw new BadRequestException('Request body cannot be empty');
       }
 
       const existingPublication = await this.publicationsService.findById(id);
@@ -197,19 +219,22 @@ export class PublicationsController {
         throw new NotFoundException('Publication not found');
       }
 
+      const requiredFields = ['title', 'description', 'providerId'];
+      for (const field of requiredFields) {
+        if (!body[field]) {
+          throw new BadRequestException(`${field} is required`);
+        }
+      }
+
       const updateData = {
         title: body.title,
         description: body.description,
         providerId: body.providerId,
-        picture: existingPublication.picture || '',
+        pictures: body.pictures || existingPublication.pictures || [],
+        updatedAt: new Date(),
       };
 
-      console.log('Updating publication ID (text):', id);
-      console.log('Update payload (text):', updateData);
-
       const updatedPublication = await this.publicationsService.updatePublication(id, updateData);
-
-      console.log('Updated publication (text):', updatedPublication);
 
       return {
         success: true,
@@ -224,18 +249,52 @@ export class PublicationsController {
   }
 
   @Get()
-  findAll(): Promise<Publication[]> {
+  async findAll(): Promise<Publication[]> {
     return this.publicationsService.findAll();
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string): Promise<void> {
-    return this.publicationsService.remove(id);
+  async remove(@Param('id') id: string): Promise<void> {
+    try {
+      if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        throw new BadRequestException('Invalid publication ID');
+      }
+
+      const publication = await this.publicationsService.findById(id);
+      if (!publication) {
+        throw new NotFoundException('Publication not found');
+      }
+
+      if (publication.pictures && publication.pictures.length > 0) {
+        for (const imagePath of publication.pictures) {
+          const filePath = `.${imagePath}`;
+          if (existsSync(filePath)) {
+            try {
+              await fs.unlink(filePath);
+              console.log(`Deleted image: ${imagePath}`);
+            } catch (error) {
+              console.error(`Failed to delete image: ${imagePath}`, error);
+            }
+          }
+        }
+      }
+
+      await this.publicationsService.remove(id);
+      console.log(`Successfully deleted publication: ${id}`);
+    } catch (error) {
+      console.error('Error in remove:', error);
+      throw error instanceof BadRequestException || error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException(`Failed to delete publication: ${error.message}`);
+    }
   }
 
   @Get('prestataire/:prestataireId')
   @HttpCode(200)
   async findByPrestataire(@Param('prestataireId') prestataireId: string) {
+    if (!/^[0-9a-fA-F]{24}$/.test(prestataireId)) {
+      throw new BadRequestException('Invalid prestataire ID');
+    }
     const publications = await this.publicationsService.findByPrestataireId(prestataireId);
     return {
       success: true,
@@ -246,28 +305,120 @@ export class PublicationsController {
 
   @Post(':id/like')
   async toggleLike(@Param('id') id: string, @Body() body: { userId: string }) {
-    return this.publicationsService.toggleLike(id, body.userId);
+    try {
+      if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        throw new BadRequestException('Invalid publication ID');
+      }
+      if (!body || !body.userId) {
+        throw new BadRequestException('userId is required in request body');
+      }
+      const result = await this.publicationsService.toggleLike(id, body.userId);
+      return {
+        success: true,
+        data: result,
+      };
+    } catch (error) {
+      console.error('Error in toggleLike:', error);
+      throw error instanceof BadRequestException || error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to toggle like');
+    }
   }
 
-  @Post(':id/comment')
+  // @Post(':id/comment')
+  // async addComment(
+  //   @Param('id') id: string,
+  //   @Body() body: { userId: string; text: string; userName?: string; userImageUrl?: string; userType?: string },
+  // ) {
+  //   try {
+  //     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+  //       throw new BadRequestException('Invalid publication ID');
+  //     }
+  //     if (!body || !body.userId || !body.text) {
+  //       throw new BadRequestException('userId and text are required in request body');
+  //     }
+  //     const result = await this.publicationsService.addComment(id, body.userId, body.text);
+  //     return {
+  //       success: true,
+  //       data: result,
+  //     };
+  //   } catch (error) {
+  //     console.error('Error in addComment:', error);
+  //     throw error instanceof BadRequestException || error instanceof NotFoundException
+  //       ? error
+  //       : new InternalServerErrorException('Failed to add comment');
+  //   }
+  // }
+   @Post(':id/comment')
   async addComment(
     @Param('id') id: string,
     @Body() body: { userId: string; text: string; userName?: string; userImageUrl?: string; userType?: string },
   ) {
-    return this.publicationsService.addComment(id, body.userId, body.text);
+    try {
+      if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        throw new BadRequestException('Invalid publication ID');
+      }
+      if (!body || !body.userId || !body.text) {
+        throw new BadRequestException('userId and text are required in request body');
+      }
+      const result = await this.publicationsService.addComment(id, body.userId, body.text);
+      return {
+        message: 'Commentaire ajouté avec succès',
+        data: result,
+      };
+    } catch (error) {
+      console.error('Error in addComment:', error);
+      throw error instanceof BadRequestException || error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to add comment');
+    }
   }
 
-  @Put(':publicationId/comments/:commentId')
+  @Put(':publicationId/comments/:id')
   async updateComment(
     @Param('publicationId') publicationId: string,
-    @Param('commentId') commentId: string,
-    @Body() updateCommentDto: { text: string },
+    @Param('id') commentId: string,
+    @Body() { text }: { text: string },
   ) {
-    return this.publicationsService.updateComment(publicationId, commentId, updateCommentDto.text);
+    try {
+      if (!/^[0-9a-fA-F]{24}$/.test(publicationId) || !/^[0-9a-fA-F]{24}$/.test(commentId)) {
+        throw new BadRequestException('Invalid ID format');
+      }
+      if (!text) {
+        throw new BadRequestException('Comment text is required in request body');
+      }
+      const result = await this.publicationsService.updateComment(publicationId, commentId, text);
+      return {
+        success: true,
+        data: result,
+      };
+    } catch (error) {
+      console.error('Error in updateComment:', error);
+      throw error instanceof BadRequestException || error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to update comment');
+    }
   }
 
   @Delete(':publicationId/comments/:commentId')
-  async deleteComment(@Param('publicationId') publicationId: string, @Param('commentId') commentId: string) {
-    return this.publicationsService.deleteComment(publicationId, commentId);
+  async deleteComment(
+    @Param('publicationId') publicationId: string,
+    @Param('commentId') commentId: string,
+  ) {
+    try {
+      if (!/^[0-9a-fA-F]{24}$/.test(publicationId) || !/^[0-9a-fA-F]{24}$/.test(commentId)) {
+        throw new BadRequestException('Invalid ID format');
+      }
+      const result = await this.publicationsService.deleteComment(publicationId, commentId);
+      return {
+        success: true,
+        data: result,
+      };
+    } catch (error) {
+      console.error('Error in deleteComment:', error);
+      throw error instanceof BadRequestException || error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to delete comment');
+    }
   }
 }

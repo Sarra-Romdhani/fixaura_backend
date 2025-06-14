@@ -35,6 +35,9 @@ export class Facture extends Document {
 
   @Prop() // Removed required: true to make pdfPath optional
   pdfPath: string;
+  
+  @Prop({ required: true, default: 0 })
+  discountAmount: number;
 }
 export const FactureSchema = SchemaFactory.createForClass(Facture);
 FactureSchema.index({ reservationId: 1 }, { unique: true });

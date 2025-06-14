@@ -10,7 +10,13 @@ interface SenderProfile {
   name: string;
   image: string;
 }
-
+// Export the UserSearchResult interface
+export interface UserSearchResult {
+  userId: string;
+  name: string;
+  image: string;
+  email: string;
+}
 @Injectable()
 export class MessagesService {
   private io: Server | null = null;
@@ -222,5 +228,55 @@ export class MessagesService {
     }
 
     return savedMessage;
+  }
+
+
+  async searchUsers(query: string, excludeUserId: string): Promise<UserSearchResult[]> {
+    console.log(`[DEBUG] Searching users with query: ${query}, excluding userId: ${excludeUserId}`);
+    try {
+      // Search in Client table
+      const clients = await this.clientModel
+        .find({
+          name: { $regex: query, $options: 'i' },
+          _id: { $ne: new Types.ObjectId(excludeUserId) },
+        })
+        .select('name email image')
+        .limit(10)
+        .lean()
+        .exec();
+
+      // Search in Prestataire table
+      const prestataires = await this.prestataireModel
+        .find({
+          name: { $regex: query, $options: 'i' },
+          _id: { $ne: new Types.ObjectId(excludeUserId) },
+        })
+        .select('name email image')
+        .limit(10)
+        .lean()
+        .exec();
+
+      // Combine results
+      const results: UserSearchResult[] = [
+        ...clients.map((client) => ({
+          userId: client._id.toString(),
+          name: client.name || 'Utilisateur inconnu',
+          image: client.image || '',
+          email: client.email || '',
+        })),
+        ...prestataires.map((prestataire) => ({
+          userId: prestataire._id.toString(),
+          name: prestataire.name || 'Prestataire inconnu',
+          image: prestataire.image || '',
+          email: prestataire.email || '',
+        })),
+      ];
+
+      console.log(`[DEBUG] Found ${results.length} users for query: ${query}`);
+      return results;
+    } catch (error) {
+      console.error(`[ERROR] Failed to search users: ${error.message}`);
+      return [];
+    }
   }
 }
